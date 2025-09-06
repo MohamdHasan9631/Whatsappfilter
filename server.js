@@ -49,11 +49,20 @@ async function initializeClient() {
                     qrCode = null;
                     console.log('تم تسجيل الدخول بنجاح!');
                 } else if (statusSession === 'notLogged') {
+                    clientStatus = 'qr_ready';
+                    console.log('يتطلب مسح رمز QR');
+                } else if (statusSession === 'autocloseCalled') {
+                    clientStatus = 'qr_ready';
+                    console.log('تم إغلاق الجلسة تلقائياً، يتطلب إعادة تشغيل');
+                } else if (statusSession === 'browserClose') {
                     clientStatus = 'disconnected';
-                    console.log('فشل في تسجيل الدخول');
+                    console.log('تم إغلاق المتصفح');
                 }
             },
-            logQR: false
+            logQR: false,
+            autoClose: 0, // Disable auto close
+            disableGoogleAnalytics: true,
+            updatesLog: false
         });
         
         console.log('تم إنشاء عميل الواتساب بنجاح');

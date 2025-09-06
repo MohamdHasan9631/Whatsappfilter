@@ -87,6 +87,12 @@ public
 tmp/
 temp/
 
+# WhatsApp Web session tokens
+tokens/
+wppconnect_auth/
+.wwebjs_auth/
+.wwebjs_cache/
+
 # Logs
 logs
 *.log
