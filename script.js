@@ -260,6 +260,34 @@ function isValidImageUrl(url) {
     }
 }
 
+// Extract profile picture URL from profilePicture object
+function extractProfilePictureUrl(profilePicture) {
+    if (!profilePicture) return null;
+    
+    // If it's already a string URL, return it
+    if (typeof profilePicture === 'string') {
+        return isValidImageUrl(profilePicture) ? profilePicture : null;
+    }
+    
+    // If it's an object, extract the best available URL
+    if (typeof profilePicture === 'object') {
+        // Priority: imgFull > img > eurl
+        const urls = [
+            profilePicture.imgFull,
+            profilePicture.img, 
+            profilePicture.eurl
+        ];
+        
+        for (const url of urls) {
+            if (url && isValidImageUrl(url)) {
+                return url;
+            }
+        }
+    }
+    
+    return null;
+}
+
 // Generate random last seen
 function generateLastSeen() {
     const options = [
@@ -867,6 +895,85 @@ function displayResultsSummary(container, stats, totalChecked) {
     `;
 }
 
+// Create enhanced profile picture component
+function createProfilePictureComponent(profilePicture, phoneNumber, isLarge = false) {
+    const size = isLarge ? 'large' : 'normal';
+    const profilePictureUrl = extractProfilePictureUrl(profilePicture);
+    const fallbackUrl = generateProfilePicture(phoneNumber);
+    
+    return `
+        <div class="profile-picture-container ${size}">
+            <div class="profile-picture-wrapper">
+                ${profilePictureUrl ? `
+                    <img class="profile-picture primary" 
+                         src="${profilePictureUrl}" 
+                         alt="صورة الملف الشخصي الأساسية"
+                         onload="handleProfilePictureLoad(this)" 
+                         onerror="handleProfilePictureError(this, '${fallbackUrl}', '${phoneNumber}')"
+                         style="opacity: 0; transition: opacity 0.3s ease;">
+                ` : ''}
+                <img class="profile-picture fallback" 
+                     src="${fallbackUrl}" 
+                     alt="صورة الملف الشخصي البديلة"
+                     onload="handleProfilePictureLoad(this)" 
+                     onerror="handleProfilePictureFinalError(this)"
+                     style="opacity: ${profilePictureUrl ? '0' : '0'}; transition: opacity 0.3s ease;">
+                <div class="profile-picture-loading">
+                    <i class="fas fa-spinner fa-spin"></i>
+                </div>
+                <div class="profile-picture-icon" style="display: none;">
+                    <i class="fas fa-user"></i>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+// Handle profile picture loading
+function handleProfilePictureLoad(img) {
+    const container = img.closest('.profile-picture-wrapper');
+    const loading = container.querySelector('.profile-picture-loading');
+    
+    if (loading) loading.style.display = 'none';
+    img.style.opacity = '1';
+    
+    // Hide other images if this one loaded successfully
+    if (img.classList.contains('primary')) {
+        const fallback = container.querySelector('.fallback');
+        if (fallback) fallback.style.opacity = '0';
+    }
+}
+
+// Handle profile picture error
+function handleProfilePictureError(img, fallbackUrl, phoneNumber) {
+    console.warn('فشل في تحميل صورة الملف الشخصي الأساسية، جاري المحاولة مع البديل');
+    
+    const container = img.closest('.profile-picture-wrapper');
+    const fallback = container.querySelector('.fallback');
+    
+    img.style.opacity = '0';
+    
+    if (fallback) {
+        fallback.style.opacity = '0';
+        setTimeout(() => {
+            fallback.style.opacity = '1';
+        }, 100);
+    }
+}
+
+// Handle final profile picture error
+function handleProfilePictureFinalError(img) {
+    console.warn('فشل في تحميل جميع صور الملف الشخصي، عرض الأيقونة البديلة');
+    
+    const container = img.closest('.profile-picture-wrapper');
+    const loading = container.querySelector('.profile-picture-loading');
+    const icon = container.querySelector('.profile-picture-icon');
+    
+    if (loading) loading.style.display = 'none';
+    if (icon) icon.style.display = 'flex';
+    img.style.opacity = '0';
+}
+
 // Display WhatsApp result
 function displayWhatsAppResult(container, data) {
     const resultDiv = document.createElement('div');
@@ -888,22 +995,7 @@ function displayWhatsAppResult(container, data) {
         resultDiv.innerHTML = `
             <div class="result-header">
                 <div class="result-avatar">
-                    ${data.profilePicture && isValidImageUrl(data.profilePicture) ? 
-                        `<img src="${data.profilePicture}" alt="صورة الملف الشخصي" 
-                              onload="handleImageLoad(this)" 
-                              onerror="handleImageError(this, '${data.number}')"
-                              style="opacity: 0; transition: opacity 0.3s ease;">
-                         <i class="fas fa-user profile-fallback-icon" style="display: none;"></i>
-                         <div class="image-loading" style="display: block;">
-                             <i class="fas fa-spinner fa-spin"></i>
-                         </div>` : 
-                        `<img src="${generateProfilePicture(data.number)}" alt="صورة محلية" 
-                              onload="handleImageLoad(this)" 
-                              style="opacity: 0; transition: opacity 0.3s ease;">
-                         <div class="image-loading" style="display: block;">
-                             <i class="fas fa-spinner fa-spin"></i>
-                         </div>`
-                    }
+                    ${createProfilePictureComponent(data.profilePicture, data.number)}
                 </div>
                 <div class="result-info">
                     <h3>${data.number}</h3>
@@ -996,6 +1088,74 @@ function displayWhatsAppResult(container, data) {
     }
     
     container.appendChild(resultDiv);
+    
+    // Add click handler for profile picture showcase if WhatsApp account exists
+    if (!data.error && data.hasWhatsApp) {
+        const profilePictureUrl = extractProfilePictureUrl(data.profilePicture);
+        if (profilePictureUrl) {
+            const avatarElement = resultDiv.querySelector('.result-avatar');
+            if (avatarElement) {
+                avatarElement.style.cursor = 'pointer';
+                avatarElement.addEventListener('click', () => {
+                    showProfileShowcase(data, profilePictureUrl);
+                });
+            }
+        }
+    }
+}
+
+// Show profile picture showcase
+function showProfileShowcase(data, profilePictureUrl) {
+    const showcase = document.getElementById('profile-showcase');
+    const showcaseProfilePicture = showcase.querySelector('.showcase-profile-picture');
+    const showcaseNumber = document.getElementById('showcase-number');
+    const showcaseName = document.getElementById('showcase-name');
+    
+    // Update showcase content
+    showcaseProfilePicture.innerHTML = createProfilePictureComponent(data.profilePicture, data.number, true);
+    showcaseNumber.textContent = data.number;
+    showcaseName.textContent = data.name || (data.country ? getCountryName(data.country) : 'غير محدد');
+    
+    // Store current profile data for download/fullscreen functions
+    window.currentProfileData = {
+        number: data.number,
+        name: data.name,
+        profilePictureUrl: profilePictureUrl
+    };
+    
+    // Show showcase
+    showcase.style.display = 'block';
+    showcase.scrollIntoView({ behavior: 'smooth' });
+}
+
+// Close profile showcase
+function closeProfileShowcase() {
+    const showcase = document.getElementById('profile-showcase');
+    showcase.style.display = 'none';
+}
+
+// Download profile picture
+function downloadProfilePicture() {
+    if (!window.currentProfileData) return;
+    
+    const { profilePictureUrl, number } = window.currentProfileData;
+    
+    // Create a temporary link element to trigger download
+    const link = document.createElement('a');
+    link.href = profilePictureUrl;
+    link.download = `profile_${number}.jpg`;
+    link.target = '_blank';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+// Open profile picture fullscreen
+function openProfilePictureFullscreen() {
+    if (!window.currentProfileData) return;
+    
+    const { profilePictureUrl } = window.currentProfileData;
+    window.open(profilePictureUrl, '_blank');
 }
 
 // Display carrier result
