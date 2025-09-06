@@ -1,0 +1,36 @@
+{
+  "name": "whatsapp-number-checker",
+  "version": "1.0.0",
+  "description": "أداة شاملة لفحص أرقام الواتساب ومعرفة معلومات الشبكة",
+  "main": "index.html",
+  "scripts": {
+    "start": "npx http-server . -p 8080 -o",
+    "dev": "npx live-server --port=8080 --entry-file=index.html",
+    "build": "echo 'Static website - no build process needed'",
+    "test": "echo 'Tests can be added in the future'"
+  },
+  "keywords": [
+    "whatsapp",
+    "phone-checker",
+    "carrier-detection",
+    "javascript",
+    "arabic"
+  ],
+  "author": "WhatsApp Filter Tool",
+  "license": "MIT",
+  "dependencies": {
+    "libphonenumber-js": "^1.10.44"
+  },
+  "devDependencies": {
+    "http-server": "^14.1.1",
+    "live-server": "^1.2.2"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MohamdHasan9631/Whatsappfilter.git"
+  },
+  "homepage": "https://github.com/MohamdHasan9631/Whatsappfilter",
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}

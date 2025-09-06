@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>فحص أرقام الواتساب - WhatsApp Number Checker</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <h1><i class="fab fa-whatsapp"></i> فحص أرقام الواتساب</h1>
+            <p>أداة شاملة لفحص أرقام الواتساب ومعرفة معلومات الشبكة</p>
+        </header>
+
+        <!-- Navigation -->
+        <nav class="nav-tabs">
+            <button class="tab-btn active" onclick="showTab('whatsapp-checker')">
+                <i class="fab fa-whatsapp"></i> فحص الواتساب
+            </button>
+            <button class="tab-btn" onclick="showTab('number-tools')">
+                <i class="fas fa-tools"></i> أدوات الأرقام
+            </button>
+        </nav>
+
+        <!-- WhatsApp Checker Section -->
+        <div id="whatsapp-checker" class="tab-content active">
+            <div class="section-card">
+                <h2><i class="fas fa-search"></i> فحص رقم واحد</h2>
+                <div class="input-group">
+                    <input type="tel" id="single-number" placeholder="مثال: +962791234567" dir="ltr">
+                    <button onclick="checkSingleNumber()" class="btn-primary">
+                        <i class="fas fa-search"></i> فحص
+                    </button>
+                </div>
+                <div id="single-result" class="result-container"></div>
+            </div>
+
+            <div class="section-card">
+                <h2><i class="fas fa-file-upload"></i> فحص ملف أرقام</h2>
+                <div class="file-upload-area">
+                    <input type="file" id="numbers-file" accept=".txt" style="display: none;">
+                    <div class="upload-zone" onclick="document.getElementById('numbers-file').click()">
+                        <i class="fas fa-cloud-upload-alt"></i>
+                        <p>اضغط لاختيار ملف نصي يحتوي على الأرقام</p>
+                        <small>كل رقم في سطر منفصل</small>
+                    </div>
+                </div>
+                <button onclick="checkBulkNumbers()" class="btn-primary" style="margin-top: 10px;">
+                    <i class="fas fa-search"></i> فحص جميع الأرقام
+                </button>
+                <div id="bulk-result" class="result-container"></div>
+                <div id="bulk-progress" class="progress-container" style="display: none;">
+                    <div class="progress-bar">
+                        <div class="progress-fill"></div>
+                    </div>
+                    <div class="progress-text">0%</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Number Tools Section -->
+        <div id="number-tools" class="tab-content">
+            <div class="section-card">
+                <h2><i class="fas fa-satellite-dish"></i> معرفة مشغل الشبكة</h2>
+                <div class="input-group">
+                    <input type="tel" id="carrier-number" placeholder="مثال: +1234567890" dir="ltr">
+                    <button onclick="checkCarrier()" class="btn-primary">
+                        <i class="fas fa-search"></i> فحص المشغل
+                    </button>
+                </div>
+                <div id="carrier-result" class="result-container"></div>
+            </div>
+
+            <div class="section-card">
+                <h2><i class="fas fa-file-upload"></i> فحص مشغلات ملف أرقام</h2>
+                <div class="file-upload-area">
+                    <input type="file" id="carriers-file" accept=".txt" style="display: none;">
+                    <div class="upload-zone" onclick="document.getElementById('carriers-file').click()">
+                        <i class="fas fa-cloud-upload-alt"></i>
+                        <p>اختر ملف نصي يحتوي على الأرقام</p>
+                        <small>كل رقم في سطر منفصل</small>
+                    </div>
+                </div>
+                <button onclick="checkBulkCarriers()" class="btn-primary" style="margin-top: 10px;">
+                    <i class="fas fa-search"></i> فحص جميع المشغلات
+                </button>
+                <div id="bulk-carrier-result" class="result-container"></div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p>&copy; 2024 فحص أرقام الواتساب - جميع الحقوق محفوظة</p>
+        </footer>
+    </div>
+
+    <!-- Loading Modal -->
+    <div id="loading-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="loading-spinner"></div>
+            <p>جاري الفحص...</p>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/libphonenumber-js/1.10.44/libphonenumber-js.min.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
