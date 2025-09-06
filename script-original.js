@@ -2,11 +2,6 @@
 let currentNumbers = [];
 let checkingProgress = 0;
 let totalNumbers = 0;
-let backendStatus = 'connecting';
-let statusCheckInterval = null;
-
-// Backend API configuration
-const API_BASE = window.location.origin; // Same domain as frontend
 
 // Tab switching functionality
 function showTab(tabName) {
@@ -64,148 +59,23 @@ function validatePhoneNumber(number) {
     }
 }
 
-// Check backend connection status
-async function checkBackendStatus() {
-    try {
-        const response = await fetch(`${API_BASE}/api/status`);
-        const data = await response.json();
-        
-        backendStatus = data.status;
-        updateConnectionStatus(data.status, data.qrCode);
-        
-        return data;
-    } catch (error) {
-        console.error('خطأ في الاتصال بالخادم:', error);
-        backendStatus = 'error';
-        updateConnectionStatus('error');
-        return null;
-    }
-}
-
-// Update connection status UI
-function updateConnectionStatus(status, qrCode = null) {
-    const statusElement = document.getElementById('connection-status');
-    
-    // Remove all status classes
-    statusElement.className = 'connection-status';
-    
-    switch (status) {
-        case 'connecting':
-        case 'initializing':
-            statusElement.classList.add('connecting');
-            statusElement.innerHTML = '<i class="fas fa-spinner fa-spin"></i><span>جاري الاتصال...</span>';
-            break;
-            
-        case 'connected':
-            statusElement.classList.add('connected');
-            statusElement.innerHTML = '<i class="fas fa-check-circle"></i><span>متصل - جاهز للفحص</span>';
-            break;
-            
-        case 'qr_ready':
-            statusElement.classList.add('qr-ready');
-            statusElement.innerHTML = '<i class="fas fa-qrcode"></i><span>اضغط لعرض رمز QR</span>';
-            statusElement.onclick = () => showQRModal(qrCode);
-            break;
-            
-        case 'disconnected':
-            statusElement.classList.add('disconnected');
-            statusElement.innerHTML = '<i class="fas fa-times-circle"></i><span>غير متصل</span>';
-            break;
-            
-        case 'error':
-        default:
-            statusElement.classList.add('disconnected');
-            statusElement.innerHTML = '<i class="fas fa-exclamation-triangle"></i><span>خطأ في الاتصال</span>';
-            break;
-    }
-}
-
-// Show QR Code Modal
-function showQRModal(qrCode = null) {
-    const modal = document.getElementById('qr-modal');
-    const qrContainer = document.getElementById('qr-code-container');
-    
-    if (qrCode) {
-        qrContainer.innerHTML = `<img src="${qrCode}" alt="QR Code" class="qr-code-image">`;
-    } else {
-        qrContainer.innerHTML = `
-            <div class="qr-loading">
-                <i class="fas fa-spinner fa-spin"></i>
-                <p>جاري إنشاء رمز QR...</p>
-            </div>
-        `;
-    }
-    
-    modal.style.display = 'flex';
-}
-
-// Close QR Modal
-function closeQRModal() {
-    document.getElementById('qr-modal').style.display = 'none';
-}
-
-// Refresh QR Code
-async function refreshQR() {
-    try {
-        const response = await fetch(`${API_BASE}/api/qr`);
-        const data = await response.json();
-        
-        if (data.qrCode) {
-            showQRModal(data.qrCode);
-        } else {
-            showMessage(document.getElementById('qr-code-container'), 'لا يوجد رمز QR متاح', 'warning');
-        }
-    } catch (error) {
-        console.error('خطأ في تحديث رمز QR:', error);
-        showMessage(document.getElementById('qr-code-container'), 'فشل في تحديث رمز QR', 'error');
-    }
-}
-
-// Retry connection
-async function retryConnection() {
-    try {
-        const response = await fetch(`${API_BASE}/api/restart`, {
-            method: 'POST'
-        });
-        
-        const data = await response.json();
-        
-        if (data.success) {
-            closeQRModal();
-            updateConnectionStatus('connecting');
-            showMessage(document.querySelector('.header'), 'تم إعادة تشغيل الاتصال', 'success');
-        } else {
-            showMessage(document.getElementById('qr-code-container'), data.error || 'فشل في إعادة التشغيل', 'error');
-        }
-    } catch (error) {
-        console.error('خطأ في إعادة المحاولة:', error);
-        showMessage(document.getElementById('qr-code-container'), 'فشل في إعادة المحاولة', 'error');
-    }
-}
-
-// Real WhatsApp checking using backend API
+// Simulate WhatsApp checking (Note: Real implementation would require WhatsApp API)
 async function checkWhatsAppStatus(phoneNumber) {
-    try {
-        const response = await fetch(`${API_BASE}/api/check-whatsapp`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ number: phoneNumber })
-        });
-        
-        const result = await response.json();
-        
-        if (!result.success) {
-            throw new Error(result.error);
-        }
-        
-        return result.data;
-        
-    } catch (error) {
-        console.error('خطأ في فحص الواتساب:', error);
-        throw error;
-    }
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, Math.random() * 2000 + 1000));
+    
+    // Simulate different results based on number patterns
+    const lastDigit = phoneNumber.slice(-1);
+    const hasWhatsApp = Math.random() > 0.3; // 70% chance of having WhatsApp
+    const isBusiness = hasWhatsApp && Math.random() > 0.7; // 30% chance of being business if has WhatsApp
+    
+    return {
+        hasWhatsApp,
+        isBusiness,
+        profilePicture: hasWhatsApp ? generateProfilePicture(phoneNumber) : null,
+        lastSeen: hasWhatsApp ? generateLastSeen() : null,
+        status: hasWhatsApp ? generateStatus() : null
+    };
 }
 
 // Generate placeholder profile picture
@@ -496,12 +366,6 @@ async function checkSingleNumber() {
         return;
     }
     
-    // Check backend connection
-    if (backendStatus !== 'connected') {
-        showMessage(resultContainer, 'عميل الواتساب غير متصل. يرجى التأكد من الاتصال أولاً.', 'error');
-        return;
-    }
-    
     // Validate phone number
     const validation = validatePhoneNumber(phoneNumber);
     if (!validation.valid) {
@@ -513,11 +377,15 @@ async function checkSingleNumber() {
     showLoading(true);
     
     try {
-        // Check WhatsApp status using real API
+        // Check WhatsApp status
         const whatsappInfo = await checkWhatsAppStatus(validation.formatted || phoneNumber);
         
         // Display result
-        displayWhatsAppResult(resultContainer, whatsappInfo);
+        displayWhatsAppResult(resultContainer, {
+            number: validation.formatted || phoneNumber,
+            country: validation.country,
+            ...whatsappInfo
+        });
         
     } catch (error) {
         showMessage(resultContainer, 'حدث خطأ أثناء الفحص: ' + error.message, 'error');
@@ -526,7 +394,7 @@ async function checkSingleNumber() {
     }
 }
 
-// Bulk WhatsApp check using real API
+// Bulk WhatsApp check
 async function checkBulkNumbers() {
     const fileInput = document.getElementById('numbers-file');
     const resultContainer = document.getElementById('bulk-result');
@@ -534,11 +402,6 @@ async function checkBulkNumbers() {
     
     if (!fileInput.files[0]) {
         showMessage(resultContainer, 'يرجى اختيار ملف يحتوي على الأرقام', 'error');
-        return;
-    }
-    
-    if (backendStatus !== 'connected') {
-        showMessage(resultContainer, 'عميل الواتساب غير متصل. يرجى التأكد من الاتصال أولاً.', 'error');
         return;
     }
     
@@ -560,86 +423,49 @@ async function checkBulkNumbers() {
         progressContainer.style.display = 'block';
         resultContainer.innerHTML = '';
         
-        // Use bulk API for better performance
-        try {
-            const response = await fetch(`${API_BASE}/api/check-whatsapp-bulk`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ numbers: numbers })
-            });
+        // Process numbers
+        for (let i = 0; i < numbers.length; i++) {
+            const number = numbers[i];
             
-            const result = await response.json();
+            // Update progress
+            checkingProgress = i + 1;
+            updateProgress((checkingProgress / totalNumbers) * 100);
             
-            if (!result.success) {
-                throw new Error(result.error);
+            // Validate number
+            const validation = validatePhoneNumber(number);
+            if (!validation.valid) {
+                displayWhatsAppResult(resultContainer, {
+                    number: number,
+                    error: validation.error
+                });
+                continue;
             }
             
-            // Display results
-            result.data.forEach((data, index) => {
-                // Update progress
-                checkingProgress = index + 1;
-                updateProgress((checkingProgress / totalNumbers) * 100);
+            try {
+                // Check WhatsApp status
+                const whatsappInfo = await checkWhatsAppStatus(validation.formatted || number);
                 
                 // Display result
-                if (data.error) {
-                    displayWhatsAppResult(resultContainer, {
-                        number: data.number,
-                        error: data.error
-                    });
-                } else {
-                    displayWhatsAppResult(resultContainer, data);
-                }
-            });
-            
-            // Hide progress
-            progressContainer.style.display = 'none';
-            showMessage(resultContainer, `تم فحص ${numbers.length} رقم بنجاح`, 'success');
-            
-        } catch (error) {
-            // Fallback to individual checking if bulk fails
-            console.log('فشل الفحص المجمع، سيتم الفحص الفردي...');
-            
-            for (let i = 0; i < numbers.length; i++) {
-                const number = numbers[i];
+                displayWhatsAppResult(resultContainer, {
+                    number: validation.formatted || number,
+                    country: validation.country,
+                    ...whatsappInfo
+                });
                 
-                // Update progress
-                checkingProgress = i + 1;
-                updateProgress((checkingProgress / totalNumbers) * 100);
-                
-                // Validate number
-                const validation = validatePhoneNumber(number);
-                if (!validation.valid) {
-                    displayWhatsAppResult(resultContainer, {
-                        number: number,
-                        error: validation.error
-                    });
-                    continue;
-                }
-                
-                try {
-                    // Check WhatsApp status
-                    const whatsappInfo = await checkWhatsAppStatus(validation.formatted || number);
-                    
-                    // Display result
-                    displayWhatsAppResult(resultContainer, whatsappInfo);
-                    
-                } catch (error) {
-                    displayWhatsAppResult(resultContainer, {
-                        number: validation.formatted || number,
-                        error: 'فشل في الفحص: ' + error.message
-                    });
-                }
-                
-                // Small delay between requests
-                await new Promise(resolve => setTimeout(resolve, 500));
+            } catch (error) {
+                displayWhatsAppResult(resultContainer, {
+                    number: validation.formatted || number,
+                    error: 'فشل في الفحص: ' + error.message
+                });
             }
             
-            // Hide progress
-            progressContainer.style.display = 'none';
-            showMessage(resultContainer, `تم فحص ${numbers.length} رقم بنجاح`, 'success');
+            // Small delay between requests
+            await new Promise(resolve => setTimeout(resolve, 500));
         }
+        
+        // Hide progress
+        progressContainer.style.display = 'none';
+        showMessage(resultContainer, `تم فحص ${numbers.length} رقم بنجاح`, 'success');
         
     } catch (error) {
         showMessage(resultContainer, 'حدث خطأ في قراءة الملف: ' + error.message, 'error');
@@ -749,14 +575,13 @@ function displayWhatsAppResult(container, data) {
             <div class="result-header">
                 <div class="result-avatar">
                     ${data.profilePicture ? 
-                        `<img src="${data.profilePicture}" alt="صورة الملف الشخصي" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
-                         <i class="fas fa-user" style="display: none;"></i>` : 
+                        `<img src="${data.profilePicture}" alt="صورة الملف الشخصي">` : 
                         '<i class="fas fa-user"></i>'
                     }
                 </div>
                 <div class="result-info">
                     <h3>${data.number}</h3>
-                    <p>${data.name || (data.country ? getCountryName(data.country) : 'غير محدد')}</p>
+                    <p>${data.country ? getCountryName(data.country) : 'غير محدد'}</p>
                     <div style="margin-top: 8px;">
                         <span class="status-badge ${data.hasWhatsApp ? 'whatsapp' : 'no-whatsapp'}">
                             ${data.hasWhatsApp ? 'يوجد واتساب' : 'لا يوجد واتساب'}
@@ -770,34 +595,20 @@ function displayWhatsAppResult(container, data) {
             </div>
             ${data.hasWhatsApp ? `
                 <div class="result-details">
-                    ${data.name ? `
-                        <div class="detail-item">
-                            <div class="label">الاسم</div>
-                            <div class="value success">${data.name}</div>
-                        </div>
-                    ` : ''}
                     <div class="detail-item">
                         <div class="label">آخر ظهور</div>
-                        <div class="value">${data.lastSeen || 'غير متاح'}</div>
+                        <div class="value">${data.lastSeen || 'غير محدد'}</div>
                     </div>
-                    ${data.status ? `
-                        <div class="detail-item">
-                            <div class="label">الحالة</div>
-                            <div class="value">${data.status}</div>
-                        </div>
-                    ` : ''}
+                    <div class="detail-item">
+                        <div class="label">الحالة</div>
+                        <div class="value">${data.status || 'لا توجد حالة'}</div>
+                    </div>
                     <div class="detail-item">
                         <div class="label">نوع الحساب</div>
                         <div class="value ${data.isBusiness ? 'warning' : 'success'}">
                             ${data.isBusiness ? 'تجاري' : 'شخصي'}
                         </div>
                     </div>
-                    ${data.isContact ? `
-                        <div class="detail-item">
-                            <div class="label">محفوظ</div>
-                            <div class="value success">محفوظ في جهات الاتصال</div>
-                        </div>
-                    ` : ''}
                 </div>
             ` : ''}
         `;
@@ -929,14 +740,8 @@ document.getElementById('carriers-file').addEventListener('change', function(e) 
 
 // Initialize app
 document.addEventListener('DOMContentLoaded', function() {
+    // Set up event listeners
     console.log('تم تحميل تطبيق فحص أرقام الواتساب بنجاح');
-    
-    // Initialize connection status
-    updateConnectionStatus('connecting');
-    
-    // Start status monitoring
-    checkBackendStatus();
-    statusCheckInterval = setInterval(checkBackendStatus, 5000); // Check every 5 seconds
     
     // Add keyboard support for Enter key
     document.getElementById('single-number').addEventListener('keypress', function(e) {
@@ -948,13 +753,6 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('carrier-number').addEventListener('keypress', function(e) {
         if (e.key === 'Enter') {
             checkCarrier();
-        }
-    });
-    
-    // Handle page unload
-    window.addEventListener('beforeunload', function() {
-        if (statusCheckInterval) {
-            clearInterval(statusCheckInterval);
         }
     });
 });
