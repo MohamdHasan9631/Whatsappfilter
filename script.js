@@ -25,19 +25,49 @@ function showTab(tabName) {
     event.target.classList.add('active');
 }
 
-// Phone number validation and formatting
+// Phone number validation and formatting with enhanced error messages
 function validatePhoneNumber(number) {
     try {
+        // Check if number is provided
+        if (!number || typeof number !== 'string') {
+            return { valid: false, error: 'يرجى إدخال رقم هاتف صحيح' };
+        }
+        
         // Remove all non-digit characters except +
         const cleanNumber = number.replace(/[^\d+]/g, '');
         
-        // Basic validation
-        if (!cleanNumber.startsWith('+')) {
-            return { valid: false, error: 'الرقم يجب أن يبدأ بـ +' };
+        // Check if number is empty after cleaning
+        if (!cleanNumber) {
+            return { valid: false, error: 'الرقم المدخل فارغ أو يحتوي على رموز غير صحيحة' };
         }
         
-        if (cleanNumber.length < 10 || cleanNumber.length > 15) {
-            return { valid: false, error: 'طول الرقم غير صحيح' };
+        // Basic validation
+        if (!cleanNumber.startsWith('+')) {
+            return { 
+                valid: false, 
+                error: 'الرقم يجب أن يبدأ برمز + متبوعاً برمز الدولة (مثال: +962791234567)' 
+            };
+        }
+        
+        // Check minimum length
+        if (cleanNumber.length < 10) {
+            return { 
+                valid: false, 
+                error: `الرقم قصير جداً. يجب أن يحتوي على 10-15 رقم (العدد الحالي: ${cleanNumber.length - 1})` 
+            };
+        }
+        
+        // Check maximum length
+        if (cleanNumber.length > 15) {
+            return { 
+                valid: false, 
+                error: `الرقم طويل جداً. يجب أن يحتوي على 10-15 رقم (العدد الحالي: ${cleanNumber.length - 1})` 
+            };
+        }
+        
+        // Check if it's just a + sign
+        if (cleanNumber === '+') {
+            return { valid: false, error: 'يرجى إدخال رقم الهاتف بعد رمز +' };
         }
         
         // Use libphonenumber for validation if available
@@ -52,15 +82,26 @@ function validatePhoneNumber(number) {
                         nationalNumber: phoneNumber.nationalNumber,
                         countryCode: phoneNumber.countryCallingCode
                     };
+                } else {
+                    return { 
+                        valid: false, 
+                        error: `صيغة الرقم غير صحيحة للدولة المحددة. تحقق من رمز الدولة ورقم الهاتف` 
+                    };
                 }
             } catch (e) {
-                return { valid: false, error: 'صيغة الرقم غير صحيحة' };
+                return { 
+                    valid: false, 
+                    error: `خطأ في تحليل الرقم: ${e.message || 'صيغة غير مدعومة'}` 
+                };
             }
         }
         
         return { valid: true, formatted: cleanNumber };
     } catch (error) {
-        return { valid: false, error: 'خطأ في تحليل الرقم' };
+        return { 
+            valid: false, 
+            error: `خطأ غير متوقع في معالجة الرقم: ${error.message || 'خطأ غير معروف'}` 
+        };
     }
 }
 
@@ -901,6 +942,25 @@ function displayResultsSummary(container, stats, totalChecked) {
             </button>
         </div>
         
+        <!-- Filter controls -->
+        <div class="filter-controls" style="margin-top: 15px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
+            <span style="color: white; font-weight: bold;">تصفية النتائج:</span>
+            <select id="status-filter" onchange="filterResults()" class="filter-select">
+                <option value="all">جميع النتائج</option>
+                <option value="valid">لديها واتساب فقط</option>
+                <option value="invalid">ليس لديها واتساب</option>
+                <option value="errors">الأخطاء فقط</option>
+            </select>
+            <select id="type-filter" onchange="filterResults()" class="filter-select">
+                <option value="all">جميع الأنواع</option>
+                <option value="business">تجارية فقط</option>
+                <option value="personal">شخصية فقط</option>
+            </select>
+            <button onclick="resetFilters()" class="btn-secondary" style="font-size: 0.8rem; padding: 5px 10px;">
+                <i class="fas fa-undo"></i> إعادة تعيين
+            </button>
+        </div>
+        
         ${stats.businessDetails.length > 0 ? `
             <div style="margin-top: 20px;">
                 <h4 style="color: white; margin-bottom: 10px;">
@@ -1279,37 +1339,91 @@ function readFile(file) {
     });
 }
 
-// Parse numbers from file content (supports TXT and CSV)
+// Parse numbers from file content (supports TXT and CSV) with enhanced error handling
 function parseNumbersFromFile(fileContent, fileName) {
     const fileExtension = fileName.split('.').pop().toLowerCase();
     let numbers = [];
+    let errorMessages = [];
     
-    if (fileExtension === 'csv') {
-        // Parse CSV - look for phone numbers in any column
-        const lines = fileContent.split('\n');
-        
-        for (const line of lines) {
-            const cells = line.split(',').map(cell => cell.trim().replace(/['"]/g, ''));
+    try {
+        if (fileExtension === 'csv') {
+            // Parse CSV - look for phone numbers in any column
+            const lines = fileContent.split('\n').filter(line => line.trim());
             
-            // Find cells that look like phone numbers
-            for (const cell of cells) {
-                if (cell && (cell.startsWith('+') || /^\d{8,}$/.test(cell))) {
-                    const cleanNumber = cell.startsWith('+') ? cell : '+' + cell;
-                    if (cleanNumber.length >= 10 && cleanNumber.length <= 15) {
-                        numbers.push(cleanNumber);
-                        break; // Only take first phone number from each row
+            if (lines.length === 0) {
+                throw new Error('الملف فارغ');
+            }
+            
+            for (let i = 0; i < lines.length; i++) {
+                const lineNumber = i + 1;
+                const line = lines[i].trim();
+                
+                if (!line) continue;
+                
+                // Split by comma and handle quoted values
+                const cells = line.split(',').map(cell => 
+                    cell.trim().replace(/^["']|["']$/g, '') // Remove quotes
+                );
+                
+                let foundNumber = false;
+                
+                // Find cells that look like phone numbers
+                for (const cell of cells) {
+                    if (cell && (cell.startsWith('+') || /^\d{8,}$/.test(cell))) {
+                        let cleanNumber = cell.startsWith('+') ? cell : '+' + cell;
+                        
+                        // Basic cleanup
+                        cleanNumber = cleanNumber.replace(/[^\d+]/g, '');
+                        
+                        if (cleanNumber.length >= 10 && cleanNumber.length <= 15) {
+                            numbers.push(cleanNumber);
+                            foundNumber = true;
+                            break; // Only take first phone number from each row
+                        }
                     }
+                }
+                
+                // Track lines without valid numbers for reporting
+                if (!foundNumber && lineNumber <= 10) { // Only report first 10 errors
+                    errorMessages.push(`السطر ${lineNumber}: لم يتم العثور على رقم صالح`);
+                }
+            }
+            
+            // Provide feedback about parsing
+            if (numbers.length === 0) {
+                throw new Error('لم يتم العثور على أي أرقام صالحة في ملف CSV. تأكد من وجود عمود يحتوي على أرقام الهواتف');
+            }
+            
+        } else {
+            // Parse TXT - one number per line
+            const lines = fileContent.split('\n').filter(line => line.trim());
+            
+            if (lines.length === 0) {
+                throw new Error('الملف فارغ');
+            }
+            
+            for (let i = 0; i < lines.length; i++) {
+                const lineNumber = i + 1;
+                const line = lines[i].trim();
+                
+                if (line) {
+                    numbers.push(line);
+                } else if (lineNumber <= 10) {
+                    errorMessages.push(`السطر ${lineNumber}: سطر فارغ`);
                 }
             }
         }
-    } else {
-        // Parse TXT - one number per line
-        numbers = fileContent.split('\n')
-            .map(line => line.trim())
-            .filter(line => line.length > 0);
+        
+        // Log parsing results for user feedback
+        if (errorMessages.length > 0) {
+            console.warn('تحذيرات في تحليل الملف:', errorMessages);
+        }
+        
+        return numbers;
+        
+    } catch (error) {
+        throw new Error(`خطأ في تحليل الملف: ${error.message}`);
     }
-    
-    return numbers;
 }
 
 // File upload handlers
@@ -1620,6 +1734,104 @@ function storeResults(results) {
     currentResults = results;
 }
 
+// Filter results functionality
+function filterResults() {
+    const statusFilter = document.getElementById('status-filter')?.value || 'all';
+    const typeFilter = document.getElementById('type-filter')?.value || 'all';
+    
+    if (!currentResults || currentResults.length === 0) {
+        return;
+    }
+    
+    let filteredResults = currentResults.filter(result => {
+        // Status filter
+        let statusMatch = true;
+        switch (statusFilter) {
+            case 'valid':
+                statusMatch = !result.error && result.hasWhatsApp;
+                break;
+            case 'invalid':
+                statusMatch = !result.error && !result.hasWhatsApp;
+                break;
+            case 'errors':
+                statusMatch = !!result.error;
+                break;
+            case 'all':
+            default:
+                statusMatch = true;
+                break;
+        }
+        
+        // Type filter
+        let typeMatch = true;
+        if (typeFilter !== 'all' && result.hasWhatsApp && !result.error) {
+            switch (typeFilter) {
+                case 'business':
+                    typeMatch = result.isBusiness;
+                    break;
+                case 'personal':
+                    typeMatch = !result.isBusiness;
+                    break;
+                default:
+                    typeMatch = true;
+                    break;
+            }
+        } else if (typeFilter !== 'all') {
+            typeMatch = false; // Hide non-WhatsApp results when filtering by type
+        }
+        
+        return statusMatch && typeMatch;
+    });
+    
+    // Display filtered results
+    const resultContainer = document.getElementById('bulk-result');
+    if (isTableView) {
+        displayResultsAsTable(resultContainer, filteredResults);
+    } else {
+        displayResultsAsCards(resultContainer, filteredResults);
+    }
+    
+    // Update summary to show filter info
+    if (filteredResults.length !== currentResults.length) {
+        const summaryContainer = document.getElementById('bulk-summary');
+        const filterInfo = document.createElement('div');
+        filterInfo.className = 'filter-info';
+        filterInfo.style.cssText = 'background: rgba(255,255,255,0.2); padding: 10px; border-radius: 8px; margin-top: 10px; font-size: 0.9rem;';
+        filterInfo.innerHTML = `<i class="fas fa-filter"></i> تم عرض ${filteredResults.length} من ${currentResults.length} نتيجة`;
+        
+        // Remove existing filter info
+        const existingInfo = summaryContainer.querySelector('.filter-info');
+        if (existingInfo) {
+            existingInfo.remove();
+        }
+        
+        summaryContainer.appendChild(filterInfo);
+    }
+}
+
+// Reset filters
+function resetFilters() {
+    const statusFilter = document.getElementById('status-filter');
+    const typeFilter = document.getElementById('type-filter');
+    
+    if (statusFilter) statusFilter.value = 'all';
+    if (typeFilter) typeFilter.value = 'all';
+    
+    // Remove filter info
+    const filterInfo = document.querySelector('.filter-info');
+    if (filterInfo) {
+        filterInfo.remove();
+    }
+    
+    // Show all results
+    const resultContainer = document.getElementById('bulk-result');
+    if (isTableView) {
+        displayResultsAsTable(resultContainer, currentResults);
+    } else {
+        displayResultsAsCards(resultContainer, currentResults);
+    }
+}
+
 // Initialize app
 document.addEventListener('DOMContentLoaded', function() {
     console.log('تم تحميل تطبيق فحص أرقام الواتساب بنجاح');
@@ -1650,4 +1862,67 @@ document.addEventListener('DOMContentLoaded', function() {
             clearInterval(statusCheckInterval);
         }
     });
+    
+    // Add test button for localhost development
+    if (window.location.hostname === 'localhost') {
+        const testButton = document.createElement('button');
+        testButton.innerHTML = '<i class="fas fa-vial"></i> اختبار النتائج';
+        testButton.className = 'btn-secondary';
+        testButton.style.cssText = 'position: fixed; top: 10px; left: 10px; z-index: 1000; font-size: 0.8rem; padding: 5px 10px;';
+        testButton.onclick = createMockResults;
+        document.body.appendChild(testButton);
+    }
 });
+
+// Test function to demonstrate table view and export functionality (localhost only)
+function createMockResults() {
+    const mockResults = [
+        {
+            number: '+962791234567',
+            hasWhatsApp: true,
+            isBusiness: false,
+            name: 'Ahmed Ali',
+            country: 'Jordan',
+            profilePicture: true
+        },
+        {
+            number: '+966501234567',
+            hasWhatsApp: true,
+            isBusiness: true,
+            name: 'Mohammed Hassan',
+            country: 'Saudi Arabia',
+            businessInfo: 'Tech Company',
+            profilePicture: false
+        },
+        {
+            number: '+1234567890',
+            hasWhatsApp: false,
+            country: 'USA'
+        },
+        {
+            number: '+971501234567',
+            hasWhatsApp: true,
+            isBusiness: true,
+            name: 'Fatima Al-Zahra',
+            country: 'UAE',
+            businessInfo: 'Restaurant Chain',
+            profilePicture: true
+        },
+        {
+            number: '+invalid123',
+            error: 'الرقم يجب أن يبدأ برمز + متبوعاً برمز الدولة (مثال: +962791234567)'
+        }
+    ];
+    
+    // Store results for export and filtering
+    storeResults(mockResults);
+    
+    // Calculate and display summary
+    const stats = calculateStats(mockResults);
+    displayResultsSummary(document.getElementById('bulk-summary'), stats, mockResults.length);
+    
+    // Display results as cards initially
+    displayResultsAsCards(document.getElementById('bulk-result'), mockResults);
+    
+    console.log('Mock results created for testing');
+}
