@@ -86,14 +86,18 @@ async function checkWhatsAppNumber(number) {
         
         // Check if number exists on WhatsApp
         const exists = await client.checkNumberStatus(formattedNumber);
+        console.log('🔍 Debug - checkNumberStatus response for', formattedNumber, ':', JSON.stringify(exists, null, 2));
         
-        if (!exists.exists) {
+        if (!exists.numberExists) {
+            console.log('❌ Number reported as NOT existing on WhatsApp');
             return {
                 hasWhatsApp: false,
                 number: cleanNumber,
                 status: 'لا يوجد واتساب'
             };
         }
+        
+        console.log('✅ Number exists on WhatsApp, proceeding with additional checks...');
         
         // Try to get contact info
         let contactInfo = null;
