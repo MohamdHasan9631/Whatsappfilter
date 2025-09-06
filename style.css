@@ -231,6 +231,7 @@ body {
 }
 
 .result-avatar {
+    position: relative;
     width: 60px;
     height: 60px;
     border-radius: 50%;
@@ -247,6 +248,21 @@ body {
     height: 100%;
     border-radius: 50%;
     object-fit: cover;
+    transition: opacity 0.3s ease;
+}
+
+.result-avatar .image-loading {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 1.2rem;
+    color: #25D366;
+}
+
+.result-avatar .profile-fallback-icon {
+    font-size: 1.5rem;
+    color: #666;
 }
 
 .result-info h3 {
