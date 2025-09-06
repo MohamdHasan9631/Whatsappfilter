@@ -560,6 +560,9 @@ async function checkBulkNumbers() {
         progressContainer.style.display = 'block';
         resultContainer.innerHTML = '';
         
+        // Hide summary initially
+        document.getElementById('bulk-summary').style.display = 'none';
+        
         // Use bulk API for better performance
         try {
             const response = await fetch(`${API_BASE}/api/check-whatsapp-bulk`, {
@@ -576,7 +579,10 @@ async function checkBulkNumbers() {
                 throw new Error(result.error);
             }
             
-            // Display results
+            // Display results and summary
+            const stats = calculateStats(result.data);
+            displayResultsSummary(document.getElementById('bulk-summary'), stats, numbers.length);
+            
             result.data.forEach((data, index) => {
                 // Update progress
                 checkingProgress = index + 1;
@@ -595,12 +601,12 @@ async function checkBulkNumbers() {
             
             // Hide progress
             progressContainer.style.display = 'none';
-            showMessage(resultContainer, `تم فحص ${numbers.length} رقم بنجاح`, 'success');
             
         } catch (error) {
             // Fallback to individual checking if bulk fails
             console.log('فشل الفحص المجمع، سيتم الفحص الفردي...');
             
+            const results = [];
             for (let i = 0; i < numbers.length; i++) {
                 const number = numbers[i];
                 
@@ -611,34 +617,42 @@ async function checkBulkNumbers() {
                 // Validate number
                 const validation = validatePhoneNumber(number);
                 if (!validation.valid) {
-                    displayWhatsAppResult(resultContainer, {
+                    const errorResult = {
                         number: number,
                         error: validation.error
-                    });
+                    };
+                    results.push(errorResult);
+                    displayWhatsAppResult(resultContainer, errorResult);
                     continue;
                 }
                 
                 try {
                     // Check WhatsApp status
                     const whatsappInfo = await checkWhatsAppStatus(validation.formatted || number);
+                    results.push(whatsappInfo);
                     
                     // Display result
                     displayWhatsAppResult(resultContainer, whatsappInfo);
                     
                 } catch (error) {
-                    displayWhatsAppResult(resultContainer, {
+                    const errorResult = {
                         number: validation.formatted || number,
                         error: 'فشل في الفحص: ' + error.message
-                    });
+                    };
+                    results.push(errorResult);
+                    displayWhatsAppResult(resultContainer, errorResult);
                 }
                 
                 // Small delay between requests
                 await new Promise(resolve => setTimeout(resolve, 500));
             }
             
+            // Display summary for fallback results
+            const stats = calculateStats(results);
+            displayResultsSummary(document.getElementById('bulk-summary'), stats, numbers.length);
+            
             // Hide progress
             progressContainer.style.display = 'none';
-            showMessage(resultContainer, `تم فحص ${numbers.length} رقم بنجاح`, 'success');
         }
         
     } catch (error) {
@@ -727,6 +741,91 @@ async function checkBulkCarriers() {
     }
 }
 
+// Calculate statistics from results
+function calculateStats(results) {
+    const stats = {
+        total: results.length,
+        withWhatsApp: 0,
+        withoutWhatsApp: 0,
+        businessAccounts: 0,
+        personalAccounts: 0,
+        errors: 0,
+        withProfilePicture: 0,
+        businessDetails: []
+    };
+    
+    results.forEach(result => {
+        if (result.error) {
+            stats.errors++;
+        } else if (result.hasWhatsApp) {
+            stats.withWhatsApp++;
+            if (result.isBusiness) {
+                stats.businessAccounts++;
+                if (result.businessInfo) {
+                    stats.businessDetails.push({
+                        number: result.number,
+                        name: result.name,
+                        businessInfo: result.businessInfo
+                    });
+                }
+            } else {
+                stats.personalAccounts++;
+            }
+            if (result.profilePicture) {
+                stats.withProfilePicture++;
+            }
+        } else {
+            stats.withoutWhatsApp++;
+        }
+    });
+    
+    return stats;
+}
+
+// Display results summary
+function displayResultsSummary(container, stats, totalChecked) {
+    container.style.display = 'block';
+    container.innerHTML = `
+        <h3><i class="fas fa-chart-bar"></i> ملخص النتائج</h3>
+        <div class="summary-stats">
+            <div class="stat-item">
+                <div class="stat-number">${totalChecked}</div>
+                <div class="stat-label">تم فحصها</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number">${stats.withWhatsApp}</div>
+                <div class="stat-label">لديها واتساب</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number">${stats.businessAccounts}</div>
+                <div class="stat-label">حسابات تجارية</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number">${stats.personalAccounts}</div>
+                <div class="stat-label">حسابات شخصية</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number">${stats.withProfilePicture}</div>
+                <div class="stat-label">لديها صورة</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number">${stats.errors}</div>
+                <div class="stat-label">أخطاء</div>
+            </div>
+        </div>
+        ${stats.businessDetails.length > 0 ? `
+            <div style="margin-top: 20px;">
+                <h4 style="color: white; margin-bottom: 10px;">
+                    <i class="fas fa-building"></i> الحسابات التجارية المكتشفة: ${stats.businessDetails.length}
+                </h4>
+                <div style="font-size: 0.9rem; opacity: 0.9;">
+                    ${stats.businessDetails.map(business => business.name || business.number).join(' • ')}
+                </div>
+            </div>
+        ` : ''}
+    `;
+}
+
 // Display WhatsApp result
 function displayWhatsAppResult(container, data) {
     const resultDiv = document.createElement('div');
@@ -796,6 +895,47 @@ function displayWhatsAppResult(container, data) {
                         <div class="detail-item">
                             <div class="label">محفوظ</div>
                             <div class="value success">محفوظ في جهات الاتصال</div>
+                        </div>
+                    ` : ''}
+                    ${data.isBusiness && data.businessInfo ? `
+                        <div class="business-details">
+                            <h4><i class="fas fa-building"></i> معلومات الحساب التجاري</h4>
+                            ${data.businessInfo.description ? `
+                                <div class="business-detail-item">
+                                    <strong>الوصف:</strong>
+                                    <span>${data.businessInfo.description}</span>
+                                </div>
+                            ` : ''}
+                            ${data.businessInfo.category ? `
+                                <div class="business-detail-item">
+                                    <strong>الفئة:</strong>
+                                    <span>${data.businessInfo.category}</span>
+                                </div>
+                            ` : ''}
+                            ${data.businessInfo.website ? `
+                                <div class="business-detail-item">
+                                    <strong>الموقع الإلكتروني:</strong>
+                                    <span><a href="${data.businessInfo.website}" target="_blank">${data.businessInfo.website}</a></span>
+                                </div>
+                            ` : ''}
+                            ${data.businessInfo.email ? `
+                                <div class="business-detail-item">
+                                    <strong>البريد الإلكتروني:</strong>
+                                    <span>${data.businessInfo.email}</span>
+                                </div>
+                            ` : ''}
+                            ${data.businessInfo.address ? `
+                                <div class="business-detail-item">
+                                    <strong>العنوان:</strong>
+                                    <span>${data.businessInfo.address}</span>
+                                </div>
+                            ` : ''}
+                            ${data.businessInfo.products && data.businessInfo.products.length > 0 ? `
+                                <div class="business-detail-item">
+                                    <strong>المنتجات:</strong>
+                                    <span>${data.businessInfo.products.length} منتج متاح</span>
+                                </div>
+                            ` : ''}
                         </div>
                     ` : ''}
                 </div>
