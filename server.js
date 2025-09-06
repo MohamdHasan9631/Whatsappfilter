@@ -80,16 +80,61 @@ async function checkWhatsAppNumber(number) {
     }
     
     try {
-        // Clean the number
-        const cleanNumber = number.replace(/[^\d+]/g, '');
+        console.log('🔍 Debug - Starting WhatsApp check for number:', number);
+        
+        // Clean the number - more robust approach
+        let cleanNumber = number.replace(/[^\d+]/g, '');
+        
+        // Ensure the number starts with + for international format
+        if (!cleanNumber.startsWith('+')) {
+            cleanNumber = '+' + cleanNumber;
+        }
+        
+        // Format for WhatsApp: remove + and add @c.us
         const formattedNumber = cleanNumber.replace(/^\+/, '') + '@c.us';
         
+        console.log('🔍 Debug - Original number:', number);
+        console.log('🔍 Debug - Clean number:', cleanNumber);
+        console.log('🔍 Debug - Formatted number for WhatsApp:', formattedNumber);
+
         // Check if number exists on WhatsApp
-        const exists = await client.checkNumberStatus(formattedNumber);
-        console.log('🔍 Debug - checkNumberStatus response for', formattedNumber, ':', JSON.stringify(exists, null, 2));
+        const result = await client.checkNumberStatus(formattedNumber);
+        console.log('🔍 Debug - checkNumberStatus response for', formattedNumber, ':', JSON.stringify(result, null, 2));
         
-        if (!exists.numberExists) {
+        // Handle different possible response structures from different wppconnect versions
+        let hasWhatsApp = false;
+        
+        if (result && typeof result === 'object') {
+            // Check various possible properties that indicate WhatsApp existence
+            hasWhatsApp = !!(
+                result.numberExists ||           // Standard property
+                result.exists ||                 // Alternative property name  
+                (result.canReceiveMessage && result.status !== 404 && result.status !== 500) || // Can receive messages
+                (result.status === 200)          // HTTP-like status indicating success
+            );
+        }
+        
+        // If the primary check suggests no WhatsApp, try alternative verification
+        if (!hasWhatsApp) {
+            console.log('🔍 Primary check failed, trying alternative verification...');
+            try {
+                // Try to get contact info as an alternative check
+                const contactInfo = await client.getContact(formattedNumber);
+                if (contactInfo && contactInfo.id && contactInfo.id._serialized) {
+                    console.log('✅ Alternative check: Contact info found, number likely has WhatsApp');
+                    hasWhatsApp = true;
+                }
+            } catch (altError) {
+                console.log('❌ Alternative check also failed:', altError.message);
+            }
+        }
+        
+        if (!hasWhatsApp) {
             console.log('❌ Number reported as NOT existing on WhatsApp');
+            console.log('  - numberExists:', result?.numberExists);
+            console.log('  - exists:', result?.exists);
+            console.log('  - canReceiveMessage:', result?.canReceiveMessage);
+            console.log('  - status:', result?.status);
             return {
                 hasWhatsApp: false,
                 number: cleanNumber,
