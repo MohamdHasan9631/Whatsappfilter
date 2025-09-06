@@ -613,9 +613,7 @@ async function checkBulkNumbers() {
     
     try {
         const fileContent = await readFile(fileInput.files[0]);
-        const numbers = fileContent.split('\n')
-            .map(line => line.trim())
-            .filter(line => line.length > 0);
+        const numbers = parseNumbersFromFile(fileContent, fileInput.files[0].name);
         
         if (numbers.length === 0) {
             showMessage(resultContainer, 'الملف فارغ أو لا يحتوي على أرقام صحيحة', 'error');
@@ -652,10 +650,13 @@ async function checkBulkNumbers() {
             const stats = calculateStats(result.data);
             displayResultsSummary(document.getElementById('bulk-summary'), stats, numbers.length);
             
+            // Store results for export
+            storeResults(result.data);
+            
             result.data.forEach((data, index) => {
                 // Update progress
                 checkingProgress = index + 1;
-                updateProgress((checkingProgress / totalNumbers) * 100);
+                updateProgress((checkingProgress / totalNumbers) * 100, checkingProgress, totalNumbers);
                 
                 // Display result
                 if (data.error) {
@@ -681,7 +682,7 @@ async function checkBulkNumbers() {
                 
                 // Update progress
                 checkingProgress = i + 1;
-                updateProgress((checkingProgress / totalNumbers) * 100);
+                updateProgress((checkingProgress / totalNumbers) * 100, checkingProgress, totalNumbers);
                 
                 // Validate number
                 const validation = validatePhoneNumber(number);
@@ -719,6 +720,9 @@ async function checkBulkNumbers() {
             // Display summary for fallback results
             const stats = calculateStats(results);
             displayResultsSummary(document.getElementById('bulk-summary'), stats, numbers.length);
+            
+            // Store results for export
+            storeResults(results);
             
             // Hide progress
             progressContainer.style.display = 'none';
@@ -770,9 +774,7 @@ async function checkBulkCarriers() {
     
     try {
         const fileContent = await readFile(fileInput.files[0]);
-        const numbers = fileContent.split('\n')
-            .map(line => line.trim())
-            .filter(line => line.length > 0);
+        const numbers = parseNumbersFromFile(fileContent, fileInput.files[0].name);
         
         if (numbers.length === 0) {
             showMessage(resultContainer, 'الملف فارغ أو لا يحتوي على أرقام صحيحة', 'error');
@@ -882,6 +884,23 @@ function displayResultsSummary(container, stats, totalChecked) {
                 <div class="stat-label">أخطاء</div>
             </div>
         </div>
+        
+        <!-- Export buttons -->
+        <div class="export-controls" style="margin-top: 20px; display: flex; gap: 10px; flex-wrap: wrap;">
+            <button onclick="exportResults('all')" class="btn-secondary">
+                <i class="fas fa-download"></i> تصدير جميع النتائج
+            </button>
+            <button onclick="exportResults('valid')" class="btn-secondary">
+                <i class="fas fa-check-circle"></i> تصدير الصالحة فقط
+            </button>
+            <button onclick="exportResults('invalid')" class="btn-secondary">
+                <i class="fas fa-times-circle"></i> تصدير غير الصالحة فقط
+            </button>
+            <button onclick="toggleTableView()" class="btn-secondary">
+                <i class="fas fa-table"></i> عرض جدولي
+            </button>
+        </div>
+        
         ${stats.businessDetails.length > 0 ? `
             <div style="margin-top: 20px;">
                 <h4 style="color: white; margin-bottom: 10px;">
@@ -1237,12 +1256,18 @@ function showLoading(show) {
     modal.style.display = show ? 'flex' : 'none';
 }
 
-function updateProgress(percentage) {
+function updateProgress(percentage, current = null, total = null) {
     const progressFill = document.querySelector('.progress-fill');
     const progressText = document.querySelector('.progress-text');
     
     progressFill.style.width = percentage + '%';
-    progressText.textContent = Math.round(percentage) + '%';
+    
+    // Enhanced progress text with current/total info
+    if (current !== null && total !== null) {
+        progressText.textContent = `جاري فحص ${current} من ${total} (${Math.round(percentage)}%)`;
+    } else {
+        progressText.textContent = Math.round(percentage) + '%';
+    }
 }
 
 function readFile(file) {
@@ -1252,6 +1277,39 @@ function readFile(file) {
         reader.onerror = e => reject(new Error('فشل في قراءة الملف'));
         reader.readAsText(file);
     });
+}
+
+// Parse numbers from file content (supports TXT and CSV)
+function parseNumbersFromFile(fileContent, fileName) {
+    const fileExtension = fileName.split('.').pop().toLowerCase();
+    let numbers = [];
+    
+    if (fileExtension === 'csv') {
+        // Parse CSV - look for phone numbers in any column
+        const lines = fileContent.split('\n');
+        
+        for (const line of lines) {
+            const cells = line.split(',').map(cell => cell.trim().replace(/['"]/g, ''));
+            
+            // Find cells that look like phone numbers
+            for (const cell of cells) {
+                if (cell && (cell.startsWith('+') || /^\d{8,}$/.test(cell))) {
+                    const cleanNumber = cell.startsWith('+') ? cell : '+' + cell;
+                    if (cleanNumber.length >= 10 && cleanNumber.length <= 15) {
+                        numbers.push(cleanNumber);
+                        break; // Only take first phone number from each row
+                    }
+                }
+            }
+        }
+    } else {
+        // Parse TXT - one number per line
+        numbers = fileContent.split('\n')
+            .map(line => line.trim())
+            .filter(line => line.length > 0);
+    }
+    
+    return numbers;
 }
 
 // File upload handlers
@@ -1373,6 +1431,193 @@ function loadProfileImage(imageUrl, container) {
             handleImageError(img);
         }
     }, 10000); // 10 second timeout
+}
+
+// Global variable to store current results for export
+let currentResults = [];
+
+// Export results functionality
+function exportResults(type = 'all') {
+    if (!currentResults || currentResults.length === 0) {
+        showMessage(document.getElementById('bulk-result'), 'لا توجد نتائج للتصدير', 'warning');
+        return;
+    }
+    
+    let dataToExport = [];
+    
+    switch (type) {
+        case 'valid':
+            dataToExport = currentResults.filter(result => !result.error && result.hasWhatsApp);
+            break;
+        case 'invalid':
+            dataToExport = currentResults.filter(result => result.error || !result.hasWhatsApp);
+            break;
+        case 'all':
+        default:
+            dataToExport = currentResults;
+            break;
+    }
+    
+    if (dataToExport.length === 0) {
+        showMessage(document.getElementById('bulk-result'), 'لا توجد نتائج من هذا النوع للتصدير', 'warning');
+        return;
+    }
+    
+    // Prepare CSV data
+    const csvHeaders = ['الرقم', 'الحالة', 'النوع', 'الاسم', 'معلومات تجارية', 'الدولة', 'مشغل الشبكة', 'صورة الملف الشخصي'];
+    const csvData = [csvHeaders];
+    
+    dataToExport.forEach(result => {
+        const row = [
+            result.number || '',
+            result.error ? 'خطأ' : (result.hasWhatsApp ? 'لديه واتساب' : 'ليس لديه واتساب'),
+            result.isBusiness ? 'تجاري' : 'شخصي',
+            result.name || '',
+            result.businessInfo || '',
+            result.country || '',
+            result.carrier || '',
+            result.profilePicture ? 'متوفرة' : 'غير متوفرة'
+        ];
+        csvData.push(row);
+    });
+    
+    // Convert to CSV format
+    const csvContent = csvData.map(row => row.map(field => `"${field}"`).join(',')).join('\n');
+    
+    // Create and download file
+    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    
+    link.setAttribute('href', url);
+    link.setAttribute('download', `whatsapp_results_${type}_${new Date().toISOString().slice(0, 10)}.csv`);
+    link.style.visibility = 'hidden';
+    
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    showMessage(document.getElementById('bulk-result'), `تم تصدير ${dataToExport.length} نتيجة بنجاح`, 'success');
+}
+
+// Toggle between card view and table view
+let isTableView = false;
+
+function toggleTableView() {
+    isTableView = !isTableView;
+    const resultContainer = document.getElementById('bulk-result');
+    
+    if (isTableView) {
+        displayResultsAsTable(resultContainer, currentResults);
+    } else {
+        displayResultsAsCards(resultContainer, currentResults);
+    }
+    
+    // Update button text
+    const toggleButton = document.querySelector('button[onclick="toggleTableView()"]');
+    if (toggleButton) {
+        toggleButton.innerHTML = isTableView ? 
+            '<i class="fas fa-th-large"></i> عرض البطاقات' : 
+            '<i class="fas fa-table"></i> عرض جدولي';
+    }
+}
+
+// Display results as table
+function displayResultsAsTable(container, results) {
+    if (!results || results.length === 0) {
+        return;
+    }
+    
+    let tableHTML = `
+        <div class="results-table-container">
+            <table class="results-table">
+                <thead>
+                    <tr>
+                        <th onclick="sortTable(0)">الرقم <i class="fas fa-sort"></i></th>
+                        <th onclick="sortTable(1)">الحالة <i class="fas fa-sort"></i></th>
+                        <th onclick="sortTable(2)">النوع <i class="fas fa-sort"></i></th>
+                        <th onclick="sortTable(3)">الاسم <i class="fas fa-sort"></i></th>
+                        <th onclick="sortTable(4)">الدولة <i class="fas fa-sort"></i></th>
+                        <th onclick="sortTable(5)">صورة <i class="fas fa-sort"></i></th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+    
+    results.forEach(result => {
+        const status = result.error ? 'خطأ' : (result.hasWhatsApp ? 'متوفر' : 'غير متوفر');
+        const statusClass = result.error ? 'error' : (result.hasWhatsApp ? 'success' : 'warning');
+        const type = result.isBusiness ? 'تجاري' : 'شخصي';
+        const hasImage = result.profilePicture ? 'متوفرة' : 'غير متوفرة';
+        
+        tableHTML += `
+            <tr class="${statusClass}">
+                <td dir="ltr">${result.number || ''}</td>
+                <td><span class="status-badge ${statusClass}">${status}</span></td>
+                <td>${result.hasWhatsApp ? type : '-'}</td>
+                <td>${result.name || '-'}</td>
+                <td>${result.country || '-'}</td>
+                <td>${result.hasWhatsApp ? hasImage : '-'}</td>
+            </tr>
+        `;
+    });
+    
+    tableHTML += `
+                </tbody>
+            </table>
+        </div>
+    `;
+    
+    container.innerHTML = tableHTML;
+}
+
+// Display results as cards (original view)
+function displayResultsAsCards(container, results) {
+    container.innerHTML = '';
+    results.forEach(result => {
+        displayWhatsAppResult(container, result);
+    });
+}
+
+// Sort table functionality
+let sortDirection = {};
+
+function sortTable(columnIndex) {
+    const table = document.querySelector('.results-table tbody');
+    const rows = Array.from(table.querySelectorAll('tr'));
+    
+    // Toggle sort direction
+    sortDirection[columnIndex] = !sortDirection[columnIndex];
+    const isAscending = sortDirection[columnIndex];
+    
+    rows.sort((a, b) => {
+        const aValue = a.cells[columnIndex].textContent.trim();
+        const bValue = b.cells[columnIndex].textContent.trim();
+        
+        if (isAscending) {
+            return aValue.localeCompare(bValue, 'ar');
+        } else {
+            return bValue.localeCompare(aValue, 'ar');
+        }
+    });
+    
+    // Clear and re-append sorted rows
+    table.innerHTML = '';
+    rows.forEach(row => table.appendChild(row));
+    
+    // Update sort icons
+    document.querySelectorAll('.results-table th i').forEach((icon, index) => {
+        if (index === columnIndex) {
+            icon.className = isAscending ? 'fas fa-sort-up' : 'fas fa-sort-down';
+        } else {
+            icon.className = 'fas fa-sort';
+        }
+    });
+}
+
+// Update the bulk check function to store results globally
+function storeResults(results) {
+    currentResults = results;
 }
 
 // Initialize app

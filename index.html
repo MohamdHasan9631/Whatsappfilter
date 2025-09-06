@@ -72,11 +72,11 @@
             <div class="section-card">
                 <h2><i class="fas fa-file-upload"></i> فحص ملف أرقام</h2>
                 <div class="file-upload-area">
-                    <input type="file" id="numbers-file" accept=".txt" style="display: none;">
+                    <input type="file" id="numbers-file" accept=".txt,.csv" style="display: none;">
                     <div class="upload-zone" onclick="document.getElementById('numbers-file').click()">
                         <i class="fas fa-cloud-upload-alt"></i>
-                        <p>اضغط لاختيار ملف نصي يحتوي على الأرقام</p>
-                        <small>كل رقم في سطر منفصل</small>
+                        <p>اختر ملف يحتوي على الأرقام</p>
+                        <small>يدعم ملفات TXT و CSV (كل رقم في سطر منفصل أو عمود)</small>
                     </div>
                 </div>
                 <button onclick="checkBulkNumbers()" class="btn-primary" style="margin-top: 10px;">
@@ -109,11 +109,11 @@
             <div class="section-card">
                 <h2><i class="fas fa-file-upload"></i> فحص مشغلات ملف أرقام</h2>
                 <div class="file-upload-area">
-                    <input type="file" id="carriers-file" accept=".txt" style="display: none;">
+                    <input type="file" id="carriers-file" accept=".txt,.csv" style="display: none;">
                     <div class="upload-zone" onclick="document.getElementById('carriers-file').click()">
                         <i class="fas fa-cloud-upload-alt"></i>
-                        <p>اختر ملف نصي يحتوي على الأرقام</p>
-                        <small>كل رقم في سطر منفصل</small>
+                        <p>اختر ملف يحتوي على الأرقام</p>
+                        <small>يدعم ملفات TXT و CSV (كل رقم في سطر منفصل أو عمود)</small>
                     </div>
                 </div>
                 <button onclick="checkBulkCarriers()" class="btn-primary" style="margin-top: 10px;">
