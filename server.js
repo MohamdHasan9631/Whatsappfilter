@@ -113,9 +113,27 @@ async function checkWhatsAppNumber(number) {
         
         // Try to get business profile
         let isBusiness = false;
+        let businessInfo = null;
         try {
             const businessProfile = await client.getBusinessProfilesProducts(formattedNumber);
             isBusiness = businessProfile && businessProfile.length > 0;
+            
+            if (isBusiness) {
+                // Try to get more business details
+                try {
+                    const businessDetails = await client.getContact(formattedNumber);
+                    businessInfo = {
+                        description: businessDetails?.businessProfile?.description || null,
+                        category: businessDetails?.businessProfile?.category || null,
+                        website: businessDetails?.businessProfile?.website || null,
+                        email: businessDetails?.businessProfile?.email || null,
+                        address: businessDetails?.businessProfile?.address || null,
+                        products: businessProfile || []
+                    };
+                } catch (businessError) {
+                    console.warn('لا يمكن الحصول على تفاصيل الحساب التجاري:', businessError.message);
+                }
+            }
         } catch (e) {
             // Not a business account or can't access business info
         }
@@ -125,6 +143,7 @@ async function checkWhatsAppNumber(number) {
             number: cleanNumber,
             profilePicture: profilePicture,
             isBusiness: isBusiness,
+            businessInfo: businessInfo,
             name: contactInfo?.name || contactInfo?.pushname || null,
             status: contactInfo?.status || null,
             lastSeen: 'غير متاح', // WhatsApp doesn't allow reading last seen for privacy
