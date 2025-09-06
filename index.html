@@ -40,6 +40,33 @@
                     </button>
                 </div>
                 <div id="single-result" class="result-container"></div>
+                
+                <!-- Profile Picture Showcase -->
+                <div id="profile-showcase" class="profile-showcase" style="display: none;">
+                    <div class="showcase-header">
+                        <h3><i class="fas fa-user-circle"></i> معاينة صورة الملف الشخصي</h3>
+                        <button onclick="closeProfileShowcase()" class="btn-close">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div class="showcase-content">
+                        <div class="showcase-profile-picture">
+                            <!-- Profile picture will be displayed here -->
+                        </div>
+                        <div class="showcase-info">
+                            <h4 id="showcase-number"></h4>
+                            <p id="showcase-name"></p>
+                            <div class="showcase-actions">
+                                <button onclick="downloadProfilePicture()" class="btn-secondary">
+                                    <i class="fas fa-download"></i> تحميل الصورة
+                                </button>
+                                <button onclick="openProfilePictureFullscreen()" class="btn-secondary">
+                                    <i class="fas fa-expand"></i> عرض بالحجم الكامل
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <div class="section-card">
