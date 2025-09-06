@@ -1863,13 +1863,14 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
-    // Add test button for localhost development
-    if (window.location.hostname === 'localhost') {
+    // Add test button for localhost development (can be removed in production)
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
         const testButton = document.createElement('button');
         testButton.innerHTML = '<i class="fas fa-vial"></i> اختبار النتائج';
         testButton.className = 'btn-secondary';
-        testButton.style.cssText = 'position: fixed; top: 10px; left: 10px; z-index: 1000; font-size: 0.8rem; padding: 5px 10px;';
+        testButton.style.cssText = 'position: fixed; top: 10px; left: 10px; z-index: 1000; font-size: 0.8rem; padding: 5px 10px; background: rgba(0,0,0,0.7); color: white; border: none; border-radius: 5px;';
         testButton.onclick = createMockResults;
+        testButton.title = 'For testing purposes only - not visible in production';
         document.body.appendChild(testButton);
     }
 });
