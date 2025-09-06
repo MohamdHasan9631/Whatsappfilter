@@ -13,6 +13,10 @@
         <header class="header">
             <h1><i class="fab fa-whatsapp"></i> فحص أرقام الواتساب</h1>
             <p>أداة شاملة لفحص أرقام الواتساب ومعرفة معلومات الشبكة</p>
+            <div id="connection-status" class="connection-status">
+                <i class="fas fa-spinner fa-spin"></i>
+                <span>جاري الاتصال...</span>
+            </div>
         </header>
 
         <!-- Navigation -->
@@ -102,6 +106,42 @@
         <div class="modal-content">
             <div class="loading-spinner"></div>
             <p>جاري الفحص...</p>
+        </div>
+    </div>
+
+    <!-- QR Code Modal -->
+    <div id="qr-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fab fa-whatsapp"></i> تسجيل الدخول إلى الواتساب</h3>
+                <button class="close-btn" onclick="closeQRModal()">&times;</button>
+            </div>
+            <div class="qr-container">
+                <p>امسح رمز QR هذا بهاتفك للاتصال بالواتساب</p>
+                <div id="qr-code-container">
+                    <div class="qr-loading">
+                        <i class="fas fa-spinner fa-spin"></i>
+                        <p>جاري إنشاء رمز QR...</p>
+                    </div>
+                </div>
+                <div class="qr-instructions">
+                    <h4>خطوات التسجيل:</h4>
+                    <ol>
+                        <li>افتح واتساب على هاتفك</li>
+                        <li>اذهب إلى القائمة (النقاط الثلاث) > الأجهزة المرتبطة</li>
+                        <li>اضغط على "ربط جهاز"</li>
+                        <li>امسح رمز QR المعروض أعلاه</li>
+                    </ol>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button onclick="refreshQR()" class="btn-secondary">
+                    <i class="fas fa-sync"></i> تحديث الرمز
+                </button>
+                <button onclick="retryConnection()" class="btn-primary">
+                    <i class="fas fa-retry"></i> إعادة المحاولة
+                </button>
+            </div>
         </div>
     </div>
 

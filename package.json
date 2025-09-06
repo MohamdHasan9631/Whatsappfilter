@@ -2,10 +2,12 @@
   "name": "whatsapp-number-checker",
   "version": "1.0.0",
   "description": "أداة شاملة لفحص أرقام الواتساب ومعرفة معلومات الشبكة",
-  "main": "index.html",
+  "main": "server.js",
   "scripts": {
-    "start": "npx http-server . -p 8080 -o",
-    "dev": "npx live-server --port=8080 --entry-file=index.html",
+    "start": "node server.js",
+    "dev": "node server.js",
+    "frontend-only": "npx http-server . -p 8080 -o",
+    "dev-frontend": "npx live-server --port=8080 --entry-file=index.html",
     "build": "echo 'Static website - no build process needed'",
     "test": "echo 'Tests can be added in the future'"
   },
@@ -19,6 +21,10 @@
   "author": "WhatsApp Filter Tool",
   "license": "MIT",
   "dependencies": {
+    "@wppconnect-team/wppconnect": "^1.37.4",
+    "body-parser": "^2.2.0",
+    "cors": "^2.8.5",
+    "express": "^5.1.0",
     "libphonenumber-js": "^1.10.44"
   },
   "devDependencies": {
