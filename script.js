@@ -210,13 +210,54 @@ async function checkWhatsAppStatus(phoneNumber) {
 
 // Generate placeholder profile picture
 function generateProfilePicture(phoneNumber) {
-    // Generate a placeholder image based on phone number
+    // Generate a placeholder image based on phone number using canvas (local generation)
     const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FECA57', '#FF9FF3', '#54A0FF'];
     const colorIndex = parseInt(phoneNumber.slice(-1)) % colors.length;
     const initials = phoneNumber.slice(-2);
     
-    // Return placeholder image URL
-    return `https://ui-avatars.com/api/?name=${initials}&background=${colors[colorIndex].slice(1)}&color=fff&size=128`;
+    try {
+        // Create a canvas to generate a local placeholder
+        const canvas = document.createElement('canvas');
+        canvas.width = 128;
+        canvas.height = 128;
+        const ctx = canvas.getContext('2d');
+        
+        // Draw background circle
+        ctx.fillStyle = colors[colorIndex];
+        ctx.beginPath();
+        ctx.arc(64, 64, 64, 0, 2 * Math.PI);
+        ctx.fill();
+        
+        // Draw initials
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 48px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(initials, 64, 64);
+        
+        // Return data URL
+        return canvas.toDataURL('image/png');
+    } catch (error) {
+        console.warn('فشل في إنشاء صورة محلية، استخدام الخدمة الخارجية:', error);
+        // Fallback to external service if canvas fails
+        return `https://ui-avatars.com/api/?name=${initials}&background=${colors[colorIndex].slice(1)}&color=fff&size=128`;
+    }
+}
+
+// Enhanced image validation
+function isValidImageUrl(url) {
+    if (!url || typeof url !== 'string') return false;
+    
+    // Check for data URLs (base64 images)
+    if (url.startsWith('data:image/')) return true;
+    
+    // Check for valid HTTP/HTTPS URLs
+    try {
+        const urlObj = new URL(url);
+        return urlObj.protocol === 'http:' || urlObj.protocol === 'https:';
+    } catch {
+        return false;
+    }
 }
 
 // Generate random last seen
@@ -847,10 +888,21 @@ function displayWhatsAppResult(container, data) {
         resultDiv.innerHTML = `
             <div class="result-header">
                 <div class="result-avatar">
-                    ${data.profilePicture ? 
-                        `<img src="${data.profilePicture}" alt="صورة الملف الشخصي" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
-                         <i class="fas fa-user" style="display: none;"></i>` : 
-                        '<i class="fas fa-user"></i>'
+                    ${data.profilePicture && isValidImageUrl(data.profilePicture) ? 
+                        `<img src="${data.profilePicture}" alt="صورة الملف الشخصي" 
+                              onload="handleImageLoad(this)" 
+                              onerror="handleImageError(this, '${data.number}')"
+                              style="opacity: 0; transition: opacity 0.3s ease;">
+                         <i class="fas fa-user profile-fallback-icon" style="display: none;"></i>
+                         <div class="image-loading" style="display: block;">
+                             <i class="fas fa-spinner fa-spin"></i>
+                         </div>` : 
+                        `<img src="${generateProfilePicture(data.number)}" alt="صورة محلية" 
+                              onload="handleImageLoad(this)" 
+                              style="opacity: 0; transition: opacity 0.3s ease;">
+                         <div class="image-loading" style="display: block;">
+                             <i class="fas fa-spinner fa-spin"></i>
+                         </div>`
                     }
                 </div>
                 <div class="result-info">
@@ -1066,6 +1118,102 @@ document.getElementById('carriers-file').addEventListener('change', function(e) 
         `;
     }
 });
+
+// Image handling functions for better profile picture display
+function handleImageLoad(img) {
+    // Hide loading indicator
+    const loadingDiv = img.parentElement.querySelector('.image-loading');
+    if (loadingDiv) {
+        loadingDiv.style.display = 'none';
+    }
+    
+    // Show the image with fade-in effect
+    img.style.opacity = '1';
+    
+    // Hide fallback icon
+    const fallbackIcon = img.parentElement.querySelector('.profile-fallback-icon');
+    if (fallbackIcon) {
+        fallbackIcon.style.display = 'none';
+    }
+}
+
+function handleImageError(img, phoneNumber) {
+    // Hide loading indicator
+    const loadingDiv = img.parentElement.querySelector('.image-loading');
+    if (loadingDiv) {
+        loadingDiv.style.display = 'none';
+    }
+    
+    // Log the error for debugging
+    console.warn('فشل في تحميل صورة الملف الشخصي:', img.src);
+    
+    // Try to use generated placeholder instead of just showing icon
+    if (phoneNumber) {
+        const placeholderUrl = generateProfilePicture(phoneNumber);
+        if (placeholderUrl !== img.src) {
+            img.onload = () => handleImageLoad(img);
+            img.onerror = () => {
+                // If placeholder also fails, show fallback icon
+                img.style.display = 'none';
+                const fallbackIcon = img.parentElement.querySelector('.profile-fallback-icon');
+                if (fallbackIcon) {
+                    fallbackIcon.style.display = 'block';
+                }
+            };
+            img.src = placeholderUrl;
+            return;
+        }
+    }
+    
+    // Hide the failed image
+    img.style.display = 'none';
+    
+    // Show fallback icon
+    const fallbackIcon = img.parentElement.querySelector('.profile-fallback-icon');
+    if (fallbackIcon) {
+        fallbackIcon.style.display = 'block';
+    }
+}
+
+// Enhanced image loading with retry mechanism
+function loadProfileImage(imageUrl, container) {
+    if (!imageUrl || !container) return;
+    
+    // Create image element
+    const img = document.createElement('img');
+    img.alt = 'صورة الملف الشخصي';
+    img.style.opacity = '0';
+    img.style.transition = 'opacity 0.3s ease';
+    
+    // Create loading indicator
+    const loadingDiv = document.createElement('div');
+    loadingDiv.className = 'image-loading';
+    loadingDiv.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+    
+    // Create fallback icon
+    const fallbackIcon = document.createElement('i');
+    fallbackIcon.className = 'fas fa-user profile-fallback-icon';
+    fallbackIcon.style.display = 'none';
+    
+    // Add elements to container
+    container.appendChild(img);
+    container.appendChild(fallbackIcon);
+    container.appendChild(loadingDiv);
+    
+    // Set up event handlers
+    img.onload = () => handleImageLoad(img);
+    img.onerror = () => handleImageError(img);
+    
+    // Start loading the image
+    img.src = imageUrl;
+    
+    // Fallback timeout in case image takes too long
+    setTimeout(() => {
+        if (img.style.opacity === '0' && loadingDiv.style.display !== 'none') {
+            handleImageError(img);
+        }
+    }, 10000); // 10 second timeout
+}
 
 // Initialize app
 document.addEventListener('DOMContentLoaded', function() {
