@@ -210,9 +210,10 @@ async function checkBackendStatus() {
         return data;
     } catch (error) {
         console.error('Server connection error:', error);
-        backendStatus = 'error';
-        updateConnectionStatus('error');
-        updateSettingsConnectionStatus('error');
+        backendStatus = 'disconnected';
+        updateConnectionStatus('disconnected');
+        updateSettingsConnectionStatus('disconnected');
+        updateAccountInfo('Not Connected', 'Click to connect WhatsApp');
         return null;
     }
 }
@@ -320,7 +321,7 @@ function updateConnectionStatus(status, qrCode = null) {
         case 'error':
         default:
             statusElement.classList.add('error');
-            statusElement.innerHTML = '<i class="fas fa-exclamation-triangle"></i><span>Connection error</span>';
+            statusElement.innerHTML = '<i class="fas fa-times-circle"></i><span>Not Connected</span>';
             break;
     }
 }
@@ -1198,7 +1199,6 @@ function calculateStats(results) {
                 if (result.businessInfo) {
                     stats.businessDetails.push({
                         number: result.number,
-                        name: result.name,
                         businessInfo: result.businessInfo
                     });
                 }
@@ -1212,6 +1212,10 @@ function calculateStats(results) {
             stats.withoutWhatsApp++;
         }
     });
+    
+    // Add aliases for summary display
+    stats.whatsappAccounts = stats.withWhatsApp;
+    stats.successRate = stats.total > 0 ? Math.round((stats.withWhatsApp / stats.total) * 100) : 0;
     
     return stats;
 }
@@ -1444,10 +1448,6 @@ function displayWhatsAppResult(container, data) {
             </div>
             ${data.hasWhatsApp ? `
                 <div class="result-details">
-                    <div class="detail-item">
-                        <div class="label">آخر ظهور</div>
-                        <div class="value">${data.lastSeen || 'غير متاح'}</div>
-                    </div>
                     ${data.status ? `
                         <div class="detail-item">
                             <div class="label">الحالة</div>
@@ -1921,7 +1921,7 @@ function exportResults(type = 'all') {
     }
     
     // Prepare CSV data
-    const csvHeaders = ['الرقم', 'الحالة', 'النوع', 'الاسم', 'معلومات تجارية', 'الدولة', 'مشغل الشبكة', 'صورة الملف الشخصي'];
+    const csvHeaders = ['الرقم', 'الحالة', 'النوع', 'معلومات تجارية', 'الدولة', 'مشغل الشبكة', 'صورة الملف الشخصي'];
     const csvData = [csvHeaders];
     
     dataToExport.forEach(result => {
@@ -1929,7 +1929,6 @@ function exportResults(type = 'all') {
             result.number || '',
             result.error ? 'خطأ' : (result.hasWhatsApp ? 'لديه واتساب' : 'ليس لديه واتساب'),
             result.isBusiness ? 'تجاري' : 'شخصي',
-            result.name || '',
             result.businessInfo || '',
             result.country || '',
             result.carrier || '',
@@ -2066,7 +2065,135 @@ function sortTable(columnIndex) {
     });
 }
 
-// Update the bulk check function to store results globally
+// Display results summary
+function displayResultsSummary(results) {
+    if (!results || results.length === 0) return '';
+
+    const stats = calculateStats(results);
+    
+    return `
+        <div class="results-summary-card">
+            <div class="summary-header">
+                <h4><i class="fas fa-chart-bar"></i> ملخص النتائج</h4>
+            </div>
+            <div class="summary-grid">
+                <div class="summary-item success">
+                    <div class="summary-icon">
+                        <i class="fab fa-whatsapp"></i>
+                    </div>
+                    <div class="summary-content">
+                        <div class="summary-number">${stats.whatsappAccounts}</div>
+                        <div class="summary-label">حسابات واتساب</div>
+                    </div>
+                </div>
+                
+                <div class="summary-item warning">
+                    <div class="summary-icon">
+                        <i class="fas fa-times-circle"></i>
+                    </div>
+                    <div class="summary-content">
+                        <div class="summary-number">${stats.withoutWhatsApp}</div>
+                        <div class="summary-label">بدون واتساب</div>
+                    </div>
+                </div>
+                
+                <div class="summary-item info">
+                    <div class="summary-icon">
+                        <i class="fas fa-building"></i>
+                    </div>
+                    <div class="summary-content">
+                        <div class="summary-number">${stats.businessAccounts}</div>
+                        <div class="summary-label">حسابات تجارية</div>
+                    </div>
+                </div>
+                
+                <div class="summary-item primary">
+                    <div class="summary-icon">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    <div class="summary-content">
+                        <div class="summary-number">${stats.personalAccounts}</div>
+                        <div class="summary-label">حسابات شخصية</div>
+                    </div>
+                </div>
+                
+                <div class="summary-item secondary">
+                    <div class="summary-icon">
+                        <i class="fas fa-image"></i>
+                    </div>
+                    <div class="summary-content">
+                        <div class="summary-number">${stats.withProfilePicture}</div>
+                        <div class="summary-label">بصور شخصية</div>
+                    </div>
+                </div>
+                
+                <div class="summary-item dark">
+                    <div class="summary-icon">
+                        <i class="fas fa-percentage"></i>
+                    </div>
+                    <div class="summary-content">
+                        <div class="summary-number">${stats.successRate}%</div>
+                        <div class="summary-label">معدل النجاح</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+// Add results summary to single result display
+function displaySingleResultSummary(data) {
+    if (!data || data.error) return;
+    
+    const summaryContainer = document.getElementById('single-result-summary');
+    if (!summaryContainer) {
+        // Create summary container if it doesn't exist
+        const newSummaryContainer = document.createElement('div');
+        newSummaryContainer.id = 'single-result-summary';
+        newSummaryContainer.className = 'single-summary-container';
+        
+        const tableContainer = document.getElementById('single-result-table');
+        if (tableContainer) {
+            tableContainer.parentNode.insertBefore(newSummaryContainer, tableContainer.nextSibling);
+        }
+    }
+    
+    // Update summary for single result
+    const summaryHtml = `
+        <div class="single-result-summary">
+            <div class="summary-title">
+                <i class="fas fa-info-circle"></i> تفاصيل الفحص
+            </div>
+            <div class="summary-details">
+                <div class="detail-badge ${data.hasWhatsApp ? 'success' : 'warning'}">
+                    <i class="fab fa-whatsapp"></i>
+                    ${data.hasWhatsApp ? 'متوفر على واتساب' : 'غير متوفر على واتساب'}
+                </div>
+                ${data.hasWhatsApp ? `
+                    <div class="detail-badge ${data.isBusiness ? 'info' : 'primary'}">
+                        <i class="fas fa-${data.isBusiness ? 'building' : 'user'}"></i>
+                        ${data.isBusiness ? 'حساب تجاري' : 'حساب شخصي'}
+                    </div>
+                ` : ''}
+                ${data.hasWhatsApp && data.profilePicture ? `
+                    <div class="detail-badge secondary">
+                        <i class="fas fa-image"></i>
+                        يحتوي على صورة شخصية
+                    </div>
+                ` : ''}
+                <div class="detail-badge dark">
+                    <i class="fas fa-globe"></i>
+                    ${getCountryName(data.country) || 'غير محدد'}
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.getElementById('single-result-summary').innerHTML = summaryHtml;
+    document.getElementById('single-result-summary').style.display = 'block';
+}
+
+// Store results globally for export and filtering
 function storeResults(results) {
     currentResults = results;
 }
@@ -2293,14 +2420,36 @@ function createMockResults() {
     // Store results for export and filtering
     storeResults(mockResults);
     
-    // Calculate and display summary
-    const stats = calculateStats(mockResults);
-    displayResultsSummary(document.getElementById('bulk-summary'), stats, mockResults.length);
+    // Display results summary
+    const summaryContainer = document.getElementById('bulk-summary');
+    if (summaryContainer) {
+        summaryContainer.innerHTML = displayResultsSummary(mockResults);
+        summaryContainer.style.display = 'block';
+    }
     
-    // Display results as cards initially
-    displayResultsAsCards(document.getElementById('bulk-result'), mockResults);
+    // Display results as table (enhanced DataTable)
+    displayResultsAsTable(document.getElementById('bulk-result'), mockResults);
     
     console.log('Mock results created for testing');
+}
+
+// Add a test for single result with profile picture (localhost only)
+function testSingleResult() {
+    const mockSingleResult = {
+        number: '+962791234567',
+        hasWhatsApp: true,
+        isBusiness: false,
+        country: 'JO',
+        formatted: '+962 79 123 4567',
+        profilePicture: {
+            imgFull: 'https://picsum.photos/200/200?random=1',
+            img: 'https://picsum.photos/128/128?random=1',
+            eurl: 'https://picsum.photos/64/64?random=1'
+        }
+    };
+    
+    displaySingleWhatsAppResult(mockSingleResult);
+    console.log('Mock single result created for testing');
 }
 
 // Display single WhatsApp result in DataTable
@@ -2317,13 +2466,19 @@ function displaySingleWhatsAppResult(data) {
         tbody.innerHTML = `
             <tr>
                 <td>${data.number}</td>
-                <td colspan="6" style="color: #dc3545; text-align: center;">
+                <td colspan="4" style="color: #dc3545; text-align: center;">
                     <i class="fas fa-exclamation-triangle"></i> ${data.error}
                 </td>
             </tr>
         `;
     } else {
         const row = document.createElement('tr');
+        const profilePictureHtml = data.hasWhatsApp && data.profilePicture ? 
+            createProfilePictureComponent(data.profilePicture, data.number, false) : 
+            `<div class="profile-picture-placeholder">
+                <i class="fas fa-user"></i>
+            </div>`;
+        
         row.innerHTML = `
             <td>
                 <div class="number-cell">
@@ -2350,7 +2505,11 @@ function displaySingleWhatsAppResult(data) {
                     '<span class="text-muted">-</span>'
                 }
             </td>
-            <td>-</td>
+            <td>
+                <div class="profile-picture-cell">
+                    ${profilePictureHtml}
+                </div>
+            </td>
             <td>
                 <div class="action-buttons">
                     ${data.hasWhatsApp ? `
@@ -2369,6 +2528,9 @@ function displaySingleWhatsAppResult(data) {
     
     // Show the table
     tableContainer.style.display = 'block';
+    
+    // Display summary for single result
+    displaySingleResultSummary(data);
     
     // Hide the old result container
     const oldContainer = document.getElementById('single-result');
