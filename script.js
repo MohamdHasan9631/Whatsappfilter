@@ -1296,11 +1296,11 @@ function displayWhatsAppResult(container, data) {
         resultDiv.innerHTML = `
             <div class="result-header">
                 <div class="result-avatar">
-                    ${createProfilePictureComponent(data.profilePicture, data.number)}
+                    <i class="fas fa-phone"></i>
                 </div>
                 <div class="result-info">
                     <h3>${data.number}</h3>
-                    <p>${data.name || (data.country ? getCountryName(data.country) : 'غير محدد')}</p>
+                    <p>${data.country ? getCountryName(data.country) : 'غير محدد'}</p>
                     <div style="margin-top: 8px;">
                         <span class="status-badge ${data.hasWhatsApp ? 'whatsapp' : 'no-whatsapp'}">
                             ${data.hasWhatsApp ? 'يوجد واتساب' : 'لا يوجد واتساب'}
@@ -1314,12 +1314,6 @@ function displayWhatsAppResult(container, data) {
             </div>
             ${data.hasWhatsApp ? `
                 <div class="result-details">
-                    ${data.name ? `
-                        <div class="detail-item">
-                            <div class="label">الاسم</div>
-                            <div class="value success">${data.name}</div>
-                        </div>
-                    ` : ''}
                     <div class="detail-item">
                         <div class="label">آخر ظهور</div>
                         <div class="value">${data.lastSeen || 'غير متاح'}</div>
@@ -1867,9 +1861,7 @@ function displayResultsAsTable(container, results) {
                         <th onclick="sortTable(0)">الرقم <i class="fas fa-sort"></i></th>
                         <th onclick="sortTable(1)">الحالة <i class="fas fa-sort"></i></th>
                         <th onclick="sortTable(2)">النوع <i class="fas fa-sort"></i></th>
-                        <th onclick="sortTable(3)">الاسم <i class="fas fa-sort"></i></th>
-                        <th onclick="sortTable(4)">الدولة <i class="fas fa-sort"></i></th>
-                        <th onclick="sortTable(5)">صورة <i class="fas fa-sort"></i></th>
+                        <th onclick="sortTable(3)">الدولة <i class="fas fa-sort"></i></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -1886,9 +1878,7 @@ function displayResultsAsTable(container, results) {
                 <td dir="ltr">${result.number || ''}</td>
                 <td><span class="status-badge ${statusClass}">${status}</span></td>
                 <td>${result.hasWhatsApp ? type : '-'}</td>
-                <td>${result.name || '-'}</td>
                 <td>${result.country || '-'}</td>
-                <td>${result.hasWhatsApp ? hasImage : '-'}</td>
             </tr>
         `;
     });
@@ -2174,8 +2164,8 @@ function displaySingleWhatsAppResult(data) {
     
     if (!tableContainer || !tbody) return;
     
-    // Clear previous results
-    tbody.innerHTML = '';
+    // Don't clear previous results - append instead
+    // tbody.innerHTML = ''; // Commented out to preserve previous results
     
     if (data.error) {
         tbody.innerHTML = `
@@ -2214,13 +2204,7 @@ function displaySingleWhatsAppResult(data) {
                     '<span class="text-muted">-</span>'
                 }
             </td>
-            <td>${data.name || '<span class="text-muted">-</span>'}</td>
-            <td>
-                ${data.hasWhatsApp && data.profilePicture ? 
-                    `<img src="${data.profilePicture}" alt="Profile" style="width: 30px; height: 30px; border-radius: 50%; cursor: pointer;" onclick="showProfileShowcase(${JSON.stringify(data).replace(/"/g, '&quot;')}, '${data.profilePicture}')">` :
-                    '<span class="text-muted">-</span>'
-                }
-            </td>
+            <td>-</td>
             <td>
                 <div class="action-buttons">
                     ${data.hasWhatsApp ? `
@@ -2501,4 +2485,115 @@ function showMessage(message, type = 'info') {
         toast.style.transform = 'translateY(-10px)';
         setTimeout(() => document.body.removeChild(toast), 300);
     }, 3000);
+}
+
+// Enhanced Settings JavaScript
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize range inputs with value display
+    initializeRangeInputs();
+    
+    // Initialize toggle switches
+    initializeToggleSwitches();
+    
+    // Initialize custom selects
+    initializeCustomSelects();
+});
+
+function initializeRangeInputs() {
+    const delayRange = document.getElementById('check-delay');
+    const retryRange = document.getElementById('retry-attempts');
+    
+    if (delayRange) {
+        const delayValue = document.getElementById('delay-value');
+        delayRange.addEventListener('input', function() {
+            delayValue.textContent = this.value;
+            updateRangeBackground(this);
+        });
+        updateRangeBackground(delayRange);
+    }
+    
+    if (retryRange) {
+        const retryValue = document.getElementById('retry-value');
+        retryRange.addEventListener('input', function() {
+            retryValue.textContent = this.value;
+            updateRangeBackground(this);
+        });
+        updateRangeBackground(retryRange);
+    }
+}
+
+function updateRangeBackground(range) {
+    const value = (range.value - range.min) / (range.max - range.min) * 100;
+    range.style.setProperty('--value', value + '%');
+}
+
+function initializeToggleSwitches() {
+    const toggles = document.querySelectorAll('.toggle-switch input');
+    
+    toggles.forEach(toggle => {
+        toggle.addEventListener('change', function() {
+            const setting = this.id;
+            const enabled = this.checked;
+            
+            // Handle specific settings
+            switch(setting) {
+                case 'dark-mode':
+                    handleDarkMode(enabled);
+                    break;
+                case 'auto-save':
+                    handleAutoSave(enabled);
+                    break;
+                case 'notifications':
+                    handleNotifications(enabled);
+                    break;
+            }
+            
+            // Save setting to localStorage
+            localStorage.setItem(setting, enabled.toString());
+        });
+        
+        // Load saved setting
+        const savedValue = localStorage.getItem(toggle.id);
+        if (savedValue !== null) {
+            toggle.checked = savedValue === 'true';
+        }
+    });
+}
+
+function handleDarkMode(enabled) {
+    if (enabled) {
+        document.body.classList.add('dark-mode');
+    } else {
+        document.body.classList.remove('dark-mode');
+    }
+}
+
+function handleAutoSave(enabled) {
+    console.log('Auto-save:', enabled ? 'enabled' : 'disabled');
+}
+
+function handleNotifications(enabled) {
+    if (enabled && 'Notification' in window) {
+        Notification.requestPermission();
+    }
+}
+
+function initializeCustomSelects() {
+    const selects = document.querySelectorAll('.custom-select');
+    
+    selects.forEach(select => {
+        select.addEventListener('change', function() {
+            const setting = this.id;
+            const value = this.value;
+            
+            // Save setting to localStorage
+            localStorage.setItem(setting, value);
+        });
+        
+        // Load saved setting
+        const savedValue = localStorage.getItem(select.id);
+        if (savedValue) {
+            select.value = savedValue;
+        }
+    });
 }

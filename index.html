@@ -280,70 +280,218 @@
                 <!-- Settings Section -->
                 <section id="settings" class="content-section">
                     <div class="section-header">
-                        <h2><i class="fas fa-cog"></i> Settings</h2>
-                        <p>Configure application settings and WhatsApp connection</p>
+                        <h2><i class="fas fa-cog"></i> الإعدادات</h2>
+                        <p>تكوين إعدادات التطبيق واتصال الواتساب</p>
                     </div>
                     
-                    <div class="section-card">
-                        <div class="card-header">
-                            <h3>WhatsApp Connection</h3>
-                        </div>
-                        <div class="card-body">
-                            <div class="connection-info">
-                                <div class="connection-status-details">
-                                    <h4>Connection Status</h4>
-                                    <div id="detailed-connection-status" class="status-details">
-                                        <div class="status-item">
-                                            <span class="label">Status:</span>
-                                            <span class="value" id="connection-state">Disconnected</span>
+                    <div class="settings-container">
+                        <div class="settings-row">
+                            <div class="settings-card whatsapp-connection">
+                                <div class="card-header">
+                                    <div class="header-icon">
+                                        <i class="fab fa-whatsapp"></i>
+                                    </div>
+                                    <div class="header-content">
+                                        <h3>اتصال الواتساب</h3>
+                                        <p>إدارة الاتصال بحساب الواتساب</p>
+                                    </div>
+                                </div>
+                                <div class="card-body">
+                                    <div class="connection-info">
+                                        <div class="connection-status-details">
+                                            <div class="status-grid">
+                                                <div class="status-item">
+                                                    <div class="status-label">الحالة</div>
+                                                    <div class="status-value" id="connection-state">غير متصل</div>
+                                                </div>
+                                                <div class="status-item">
+                                                    <div class="status-label">الحساب المتصل</div>
+                                                    <div class="status-value" id="connected-account">لا يوجد</div>
+                                                </div>
+                                                <div class="status-item">
+                                                    <div class="status-label">آخر اتصال</div>
+                                                    <div class="status-value" id="last-connected">أبداً</div>
+                                                </div>
+                                            </div>
                                         </div>
-                                        <div class="status-item">
-                                            <span class="label">Connected Account:</span>
-                                            <span class="value" id="connected-account">None</span>
-                                        </div>
-                                        <div class="status-item">
-                                            <span class="label">Last Connected:</span>
-                                            <span class="value" id="last-connected">Never</span>
+                                        
+                                        <div class="connection-actions">
+                                            <button onclick="connectWhatsApp()" class="btn-primary glass-btn" id="connect-btn">
+                                                <i class="fas fa-qrcode"></i> 
+                                                <span>اتصال بالواتساب</span>
+                                            </button>
+                                            <button onclick="disconnectWhatsApp()" class="btn-danger glass-btn" id="disconnect-btn" style="display: none;">
+                                                <i class="fas fa-unlink"></i> 
+                                                <span>قطع الاتصال</span>
+                                            </button>
+                                            <button onclick="refreshConnection()" class="btn-secondary glass-btn">
+                                                <i class="fas fa-sync"></i> 
+                                                <span>تحديث الحالة</span>
+                                            </button>
                                         </div>
                                     </div>
                                 </div>
-                                
-                                <div class="connection-actions">
-                                    <button onclick="connectWhatsApp()" class="btn-primary" id="connect-btn">
-                                        <i class="fas fa-qrcode"></i> Connect WhatsApp
-                                    </button>
-                                    <button onclick="disconnectWhatsApp()" class="btn-danger" id="disconnect-btn" style="display: none;">
-                                        <i class="fas fa-unlink"></i> Disconnect
-                                    </button>
-                                    <button onclick="refreshConnection()" class="btn-secondary">
-                                        <i class="fas fa-sync"></i> Refresh Status
-                                    </button>
+                            </div>
+                            
+                            <div class="settings-card app-settings">
+                                <div class="card-header">
+                                    <div class="header-icon">
+                                        <i class="fas fa-sliders-h"></i>
+                                    </div>
+                                    <div class="header-content">
+                                        <h3>إعدادات التطبيق</h3>
+                                        <p>تخصيص سلوك التطبيق والأداء</p>
+                                    </div>
+                                </div>
+                                <div class="card-body">
+                                    <div class="settings-grid">
+                                        <div class="setting-item">
+                                            <div class="setting-header">
+                                                <label for="check-delay">فترة التأخير بين الفحوصات</label>
+                                                <span class="setting-unit">ملي ثانية</span>
+                                            </div>
+                                            <div class="input-wrapper">
+                                                <input type="range" id="check-delay" value="1000" min="500" max="5000" step="100" class="range-input">
+                                                <div class="range-labels">
+                                                    <span>500</span>
+                                                    <span id="delay-value">1000</span>
+                                                    <span>5000</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="setting-item">
+                                            <div class="setting-header">
+                                                <label for="retry-attempts">عدد محاولات الإعادة</label>
+                                                <span class="setting-unit">محاولة</span>
+                                            </div>
+                                            <div class="input-wrapper">
+                                                <input type="range" id="retry-attempts" value="3" min="1" max="10" step="1" class="range-input">
+                                                <div class="range-labels">
+                                                    <span>1</span>
+                                                    <span id="retry-value">3</span>
+                                                    <span>10</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="setting-item">
+                                            <div class="setting-header">
+                                                <label for="export-format">صيغة التصدير الافتراضية</label>
+                                                <span class="setting-unit">صيغة</span>
+                                            </div>
+                                            <div class="select-wrapper">
+                                                <select id="export-format" class="custom-select">
+                                                    <option value="csv">CSV - جدول بيانات</option>
+                                                    <option value="txt">TXT - نص عادي</option>
+                                                    <option value="json">JSON - بيانات منظمة</option>
+                                                </select>
+                                                <i class="fas fa-chevron-down select-arrow"></i>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                    </div>
-                    
-                    <div class="section-card">
-                        <div class="card-header">
-                            <h3>Application Settings</h3>
-                        </div>
-                        <div class="card-body">
-                            <div class="settings-group">
-                                <div class="setting-item">
-                                    <label for="check-delay">Delay between checks (ms):</label>
-                                    <input type="number" id="check-delay" value="1000" min="500" max="5000">
+                        
+                        <div class="settings-row">
+                            <div class="settings-card advanced-settings">
+                                <div class="card-header">
+                                    <div class="header-icon">
+                                        <i class="fas fa-cogs"></i>
+                                    </div>
+                                    <div class="header-content">
+                                        <h3>الإعدادات المتقدمة</h3>
+                                        <p>خيارات إضافية للمستخدمين المتقدمين</p>
+                                    </div>
                                 </div>
-                                <div class="setting-item">
-                                    <label for="retry-attempts">Retry attempts for failed checks:</label>
-                                    <input type="number" id="retry-attempts" value="3" min="1" max="10">
+                                <div class="card-body">
+                                    <div class="settings-grid">
+                                        <div class="setting-item">
+                                            <div class="setting-toggle">
+                                                <label for="auto-save">حفظ تلقائي للنتائج</label>
+                                                <div class="toggle-switch">
+                                                    <input type="checkbox" id="auto-save" checked>
+                                                    <span class="toggle-slider"></span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="setting-item">
+                                            <div class="setting-toggle">
+                                                <label for="dark-mode">الوضع الليلي</label>
+                                                <div class="toggle-switch">
+                                                    <input type="checkbox" id="dark-mode">
+                                                    <span class="toggle-slider"></span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="setting-item">
+                                            <div class="setting-toggle">
+                                                <label for="notifications">إشعارات التطبيق</label>
+                                                <div class="toggle-switch">
+                                                    <input type="checkbox" id="notifications" checked>
+                                                    <span class="toggle-slider"></span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
-                                <div class="setting-item">
-                                    <label for="export-format">Default export format:</label>
-                                    <select id="export-format">
-                                        <option value="csv">CSV</option>
-                                        <option value="txt">TXT</option>
-                                        <option value="json">JSON</option>
-                                    </select>
+                            </div>
+                            
+                            <div class="settings-card performance-stats">
+                                <div class="card-header">
+                                    <div class="header-icon">
+                                        <i class="fas fa-chart-line"></i>
+                                    </div>
+                                    <div class="header-content">
+                                        <h3>إحصائيات الأداء</h3>
+                                        <p>معلومات حول استخدام التطبيق</p>
+                                    </div>
+                                </div>
+                                <div class="card-body">
+                                    <div class="stats-grid">
+                                        <div class="stat-item">
+                                            <div class="stat-icon">
+                                                <i class="fas fa-phone"></i>
+                                            </div>
+                                            <div class="stat-content">
+                                                <div class="stat-value">0</div>
+                                                <div class="stat-label">أرقام مفحوصة</div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="stat-item">
+                                            <div class="stat-icon">
+                                                <i class="fab fa-whatsapp"></i>
+                                            </div>
+                                            <div class="stat-content">
+                                                <div class="stat-value">0</div>
+                                                <div class="stat-label">حسابات واتساب</div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="stat-item">
+                                            <div class="stat-icon">
+                                                <i class="fas fa-clock"></i>
+                                            </div>
+                                            <div class="stat-content">
+                                                <div class="stat-value">0s</div>
+                                                <div class="stat-label">متوسط وقت الفحص</div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="stat-item">
+                                            <div class="stat-icon">
+                                                <i class="fas fa-percentage"></i>
+                                            </div>
+                                            <div class="stat-content">
+                                                <div class="stat-value">0%</div>
+                                                <div class="stat-label">معدل النجاح</div>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
