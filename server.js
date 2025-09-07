@@ -18,7 +18,7 @@ let clientStatus = 'disconnected';
 let qrCode = null;
 
 // Debug mode toggle - set to false for production
-const DEBUG_MODE = true;
+const DEBUG_MODE = process.env.NODE_ENV === 'development' || process.env.DEBUG === 'true';
 
 // Initialize WhatsApp client
 async function initializeClient() {
@@ -26,20 +26,30 @@ async function initializeClient() {
         console.log('🚀 Initializing WhatsApp client...');
         clientStatus = 'initializing';
         
+        // Enhanced puppeteer configuration
+        const puppeteerOptions = {
+            headless: true,
+            args: [
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--disable-dev-shm-usage',
+                '--disable-gpu',
+                '--no-first-run',
+                '--no-zygote',
+                '--disable-features=VizDisplayCompositor',
+                '--disable-web-security',
+                '--disable-extensions'
+            ]
+        };
+
+        // Add executable path if specified in environment
+        if (process.env.CHROME_EXECUTABLE_PATH) {
+            puppeteerOptions.executablePath = process.env.CHROME_EXECUTABLE_PATH;
+        }
+
         client = await wppconnect.create({
             session: 'whatsapp-filter',
-            puppeteerOptions: {
-                headless: true,
-                args: [
-                    '--no-sandbox',
-                    '--disable-setuid-sandbox',
-                    '--disable-dev-shm-usage',
-                    '--disable-gpu',
-                    '--no-first-run',
-                    '--no-zygote',
-                    '--disable-features=VizDisplayCompositor'
-                ]
-            },
+            puppeteerOptions,
             catchQR: (base64Qrimg, asciiQR, attempts, urlCode) => {
                 console.log('📱 New QR Code generated - Attempt:', attempts);
                 qrCode = base64Qrimg;
@@ -76,6 +86,26 @@ async function initializeClient() {
     } catch (error) {
         console.error('❌ Error initializing WhatsApp client:', error);
         clientStatus = 'error';
+        
+        // Enhanced error handling with specific error types
+        if (error.message && error.message.includes('chrome')) {
+            console.error('Chrome/Chromium related error. Try setting CHROME_EXECUTABLE_PATH environment variable.');
+        } else if (error.message && error.message.includes('timeout')) {
+            console.error('Timeout error during initialization. Check internet connection.');
+        } else if (error.message && error.message.includes('ECONNREFUSED')) {
+            console.error('Connection refused. Check if all required ports are available.');
+        }
+        
+        // Attempt to retry after delay for recoverable errors
+        if (!error.message || !error.message.includes('EACCES')) {
+            console.log('Will retry initialization in 30 seconds...');
+            setTimeout(() => {
+                if (clientStatus === 'error') {
+                    console.log('Retrying WhatsApp client initialization...');
+                    initializeClient();
+                }
+            }, 30000);
+        }
     }
 }
 
@@ -101,6 +131,7 @@ async function getConnectedAccountInfo() {
         console.warn('⚠️ Could not get account info:', error.message);
         return null;
     }
+}
 
 // Check if a number has WhatsApp
 async function checkWhatsAppNumber(number) {

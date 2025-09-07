@@ -4,8 +4,8 @@
   "description": "أداة شاملة لفحص أرقام الواتساب ومعرفة معلومات الشبكة",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "node server.js",
+    "start": "NODE_ENV=production PUPPETEER_SKIP_DOWNLOAD=true node server.js",
+    "dev": "NODE_ENV=development DEBUG=true node server.js",
     "frontend-only": "npx http-server . -p 8080 -o",
     "dev-frontend": "npx live-server --port=8080 --entry-file=index.html",
     "build": "echo 'Static website - no build process needed'",
@@ -29,7 +29,7 @@
   },
   "devDependencies": {
     "http-server": "^14.1.1",
-    "live-server": "^1.2.2"
+    "live-server": "^1.2.0"
   },
   "repository": {
     "type": "git",

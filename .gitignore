@@ -121,6 +121,9 @@ build/Release
 *.swo
 *~
 
+# Temporary backup files
+*.backup
+
 # OS generated files
 .DS_Store
 .DS_Store?
