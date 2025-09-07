@@ -232,6 +232,28 @@ function updateConnectionStatus(status, qrCode = null) {
         case 'connected':
             statusElement.classList.add('connected');
             statusElement.innerHTML = '<i class="fas fa-check-circle"></i><span>Connected - Ready to check</span>';
+            
+            // Automatically close QR modal if it's open and show success message
+            const qrModal = document.getElementById('qr-modal');
+            if (qrModal && qrModal.style.display === 'flex') {
+                // Show success message in QR modal before closing
+                const qrContainer = document.getElementById('qr-code-container');
+                if (qrContainer) {
+                    qrContainer.innerHTML = `
+                        <div class="qr-success">
+                            <i class="fas fa-check-circle success-icon"></i>
+                            <h3>تم الاتصال بنجاح!</h3>
+                            <p>تم ربط حساب الواتساب بنجاح</p>
+                            <p>سيتم إغلاق هذه النافذة تلقائياً...</p>
+                        </div>
+                    `;
+                }
+                
+                // Close the modal after a short delay to show the success message
+                setTimeout(() => {
+                    closeQRModal();
+                }, 2000);
+            }
             break;
             
         case 'qr_ready':
