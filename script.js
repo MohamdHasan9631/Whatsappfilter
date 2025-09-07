@@ -1,18 +1,18 @@
 // Global variables
-let currentNumbers = [];
-let checkingProgress = 0;
-let totalNumbers = 0;
-let backendStatus = 'connecting';
-let statusCheckInterval = null;
-let currentResults = [];
-let isTableView = true; // Default to table view
-let currentFileData = null;
-let processedFiles = [];
-let numbersChecked = 0;
-let sessionStartTime = Date.now();
+var currentNumbers = [];
+var checkingProgress = 0;
+var totalNumbers = 0;
+var backendStatus = 'connecting';
+var statusCheckInterval = null;
+var currentResults = [];
+var isTableView = true; // Default to table view
+var currentFileData = null;
+var processedFiles = [];
+var numbersChecked = 0;
+var sessionStartTime = Date.now();
 
 // Backend API configuration
-const API_BASE = window.location.origin; // Same domain as frontend
+var API_BASE = window.location.origin; // Same domain as frontend
 
 // Sidebar and navigation functionality
 function toggleSidebar() {
