@@ -487,25 +487,52 @@ async function refreshQR() {
     }
 }
 
-// Retry connection
+// Retry connection with enhanced error handling
 async function retryConnection() {
+    const qrContainer = document.getElementById('qr-code-container');
+    const headerElement = document.querySelector('.header');
+    
     try {
+        // Show loading state
+        updateConnectionStatus('connecting');
+        
         const response = await fetch(`${API_BASE}/api/restart`, {
-            method: 'POST'
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
         });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
         
         const data = await response.json();
         
         if (data.success) {
             closeQRModal();
             updateConnectionStatus('connecting');
-            showMessage(document.querySelector('.header'), 'تم إعادة تشغيل الاتصال', 'success');
+            showMessage(headerElement || qrContainer, 'تم إعادة تشغيل الاتصال بنجاح', 'success');
+            
+            // Start checking status again
+            setTimeout(checkBackendStatus, 2000);
         } else {
-            showMessage(document.getElementById('qr-code-container'), data.error || 'فشل في إعادة التشغيل', 'error');
+            const errorMsg = data.error || 'فشل في إعادة التشغيل لسبب غير معروف';
+            showMessage(qrContainer, errorMsg, 'error');
+            updateConnectionStatus('error');
         }
     } catch (error) {
         console.error('خطأ في إعادة المحاولة:', error);
-        showMessage(document.getElementById('qr-code-container'), 'فشل في إعادة المحاولة', 'error');
+        
+        let errorMessage = 'فشل في إعادة المحاولة';
+        if (error.message.includes('fetch')) {
+            errorMessage = 'لا يمكن الاتصال بالخادم. تأكد من أن الخادم يعمل';
+        } else if (error.message.includes('HTTP')) {
+            errorMessage = `خطأ في الخادم: ${error.message}`;
+        }
+        
+        showMessage(qrContainer, errorMessage, 'error');
+        updateConnectionStatus('error');
     }
 }
 
@@ -973,8 +1000,10 @@ async function checkBulkNumbers() {
                     displayWhatsAppResult(resultContainer, errorResult);
                 }
                 
-                // Small delay between requests
-                await new Promise(resolve => setTimeout(resolve, 500));
+                // Enhanced rate limiting to prevent WhatsApp blocks
+                // Longer delay for WhatsApp API calls (1-2 seconds)
+                const delay = Math.random() * 1000 + 1000; // Random delay between 1-2 seconds
+                await new Promise(resolve => setTimeout(resolve, delay));
             }
             
             // Display summary for fallback results
@@ -1250,15 +1279,25 @@ function handleProfilePictureError(img, fallbackUrl, phoneNumber) {
     console.warn('فشل في تحميل صورة الملف الشخصي الأساسية، جاري المحاولة مع البديل');
     
     const container = img.closest('.profile-picture-wrapper');
-    const fallback = container.querySelector('.fallback');
+    const fallback = container?.querySelector('.fallback');
+    
+    if (!img || !container) {
+        console.error('Profile picture elements not found');
+        return;
+    }
     
     img.style.opacity = '0';
     
     if (fallback) {
         fallback.style.opacity = '0';
+        // Add error recovery delay
         setTimeout(() => {
             fallback.style.opacity = '1';
-        }, 100);
+        }, 150);
+    } else {
+        // Fallback when no fallback element exists
+        console.warn('No fallback element found, showing default icon');
+        handleProfilePictureFinalError(img);
     }
 }
 
@@ -1266,13 +1305,28 @@ function handleProfilePictureError(img, fallbackUrl, phoneNumber) {
 function handleProfilePictureFinalError(img) {
     console.warn('فشل في تحميل جميع صور الملف الشخصي، عرض الأيقونة البديلة');
     
-    const container = img.closest('.profile-picture-wrapper');
+    const container = img?.closest('.profile-picture-wrapper');
+    if (!container) {
+        console.error('Profile picture container not found');
+        return;
+    }
+    
     const loading = container.querySelector('.profile-picture-loading');
     const icon = container.querySelector('.profile-picture-icon');
     
     if (loading) loading.style.display = 'none';
-    if (icon) icon.style.display = 'flex';
-    img.style.opacity = '0';
+    if (icon) {
+        icon.style.display = 'flex';
+    } else {
+        // Create a fallback icon if none exists
+        const fallbackIcon = document.createElement('div');
+        fallbackIcon.className = 'profile-picture-icon';
+        fallbackIcon.innerHTML = '<i class="fas fa-user"></i>';
+        fallbackIcon.style.display = 'flex';
+        container.appendChild(fallbackIcon);
+    }
+    
+    if (img) img.style.opacity = '0';
 }
 
 // Display WhatsApp result
