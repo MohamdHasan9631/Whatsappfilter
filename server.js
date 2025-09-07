@@ -23,7 +23,7 @@ const DEBUG_MODE = true;
 // Initialize WhatsApp client
 async function initializeClient() {
     try {
-        console.log('تهيئة عميل الواتساب...');
+        console.log('🚀 Initializing WhatsApp client...');
         clientStatus = 'initializing';
         
         client = await wppconnect.create({
@@ -41,25 +41,28 @@ async function initializeClient() {
                 ]
             },
             catchQR: (base64Qrimg, asciiQR, attempts, urlCode) => {
-                console.log('رمز QR جديد - المحاولة:', attempts);
+                console.log('📱 New QR Code generated - Attempt:', attempts);
                 qrCode = base64Qrimg;
                 clientStatus = 'qr_ready';
             },
             statusFind: (statusSession, session) => {
-                console.log('حالة الجلسة:', statusSession, session);
+                console.log('📊 Session status:', statusSession, 'Session:', session);
                 if (statusSession === 'isLogged') {
                     clientStatus = 'connected';
                     qrCode = null;
-                    console.log('تم تسجيل الدخول بنجاح!');
+                    console.log('✅ Successfully logged in!');
+                    
+                    // Get account information for display
+                    getConnectedAccountInfo();
                 } else if (statusSession === 'notLogged') {
                     clientStatus = 'qr_ready';
-                    console.log('يتطلب مسح رمز QR');
+                    console.log('📱 QR Code scan required');
                 } else if (statusSession === 'autocloseCalled') {
                     clientStatus = 'qr_ready';
-                    console.log('تم إغلاق الجلسة تلقائياً، يتطلب إعادة تشغيل');
+                    console.log('🔄 Session auto-closed, restart required');
                 } else if (statusSession === 'browserClose') {
                     clientStatus = 'disconnected';
-                    console.log('تم إغلاق المتصفح');
+                    console.log('❌ Browser closed');
                 }
             },
             logQR: false,
@@ -68,18 +71,41 @@ async function initializeClient() {
             updatesLog: false
         });
         
-        console.log('تم إنشاء عميل الواتساب بنجاح');
+        console.log('✅ WhatsApp client created successfully');
         
     } catch (error) {
-        console.error('خطأ في تهيئة عميل الواتساب:', error);
+        console.error('❌ Error initializing WhatsApp client:', error);
         clientStatus = 'error';
     }
 }
 
+// Get connected account information
+async function getConnectedAccountInfo() {
+    try {
+        if (!client) return null;
+        
+        const hostDevice = await client.getHostDevice();
+        const me = await client.getMe();
+        
+        const accountInfo = {
+            name: me?.pushname || me?.name || 'Unknown',
+            number: me?.id?.user || hostDevice?.id?.user || 'Unknown',
+            device: hostDevice?.device || 'Unknown',
+            platform: hostDevice?.platform || 'Unknown',
+            connected: true
+        };
+        
+        console.log('📱 Connected account info:', accountInfo);
+        return accountInfo;
+    } catch (error) {
+        console.warn('⚠️ Could not get account info:', error.message);
+        return null;
+    }
+
 // Check if a number has WhatsApp
 async function checkWhatsAppNumber(number) {
     if (!client || clientStatus !== 'connected') {
-        throw new Error('عميل الواتساب غير متصل');
+        throw new Error('WhatsApp client is not connected');
     }
     
     try {
@@ -173,15 +199,46 @@ async function checkWhatsAppNumber(number) {
             console.warn('لا يمكن الحصول على صورة الملف الشخصي:', e.message);
         }
         
-        // Try to get business profile
+        // Try to get business profile with enhanced detection
         let isBusiness = false;
         let businessInfo = null;
         try {
+            // Method 1: Try to get business profile products
             const businessProfile = await client.getBusinessProfilesProducts(formattedNumber);
-            isBusiness = businessProfile && businessProfile.length > 0;
+            if (businessProfile && businessProfile.length > 0) {
+                isBusiness = true;
+                if (DEBUG_MODE) console.log('✅ Business account detected via products:', businessProfile.length, 'products');
+            }
             
+            // Method 2: Check contact details for business indicators
+            if (!isBusiness && contactInfo) {
+                // Check if contact has business-specific fields
+                const hasBusinessProfile = contactInfo.businessProfile || 
+                                         contactInfo.isBusiness || 
+                                         contactInfo.verifiedName ||
+                                         contactInfo.isEnterprise;
+                
+                if (hasBusinessProfile) {
+                    isBusiness = true;
+                    if (DEBUG_MODE) console.log('✅ Business account detected via contact info');
+                }
+            }
+            
+            // Method 3: Try alternative business detection
+            if (!isBusiness) {
+                try {
+                    const fullContact = await client.getContact(formattedNumber);
+                    if (fullContact?.isBusiness || fullContact?.businessProfile || fullContact?.verifiedName) {
+                        isBusiness = true;
+                        if (DEBUG_MODE) console.log('✅ Business account detected via full contact check');
+                    }
+                } catch (altError) {
+                    if (DEBUG_MODE) console.log('⚠️ Alternative business check failed:', altError.message);
+                }
+            }
+            
+            // If business account detected, try to get detailed business info
             if (isBusiness) {
-                // Try to get more business details
                 try {
                     const businessDetails = await client.getContact(formattedNumber);
                     businessInfo = {
@@ -190,13 +247,28 @@ async function checkWhatsAppNumber(number) {
                         website: businessDetails?.businessProfile?.website || null,
                         email: businessDetails?.businessProfile?.email || null,
                         address: businessDetails?.businessProfile?.address || null,
+                        verifiedName: businessDetails?.verifiedName || null,
                         products: businessProfile || []
                     };
+                    
+                    if (DEBUG_MODE) {
+                        console.log('📋 Business info collected:', {
+                            hasDescription: !!businessInfo.description,
+                            hasCategory: !!businessInfo.category,
+                            hasWebsite: !!businessInfo.website,
+                            hasEmail: !!businessInfo.email,
+                            hasAddress: !!businessInfo.address,
+                            hasVerifiedName: !!businessInfo.verifiedName,
+                            productCount: businessInfo.products.length
+                        });
+                    }
                 } catch (businessError) {
-                    console.warn('لا يمكن الحصول على تفاصيل الحساب التجاري:', businessError.message);
+                    console.warn('Cannot get business account details:', businessError.message);
                 }
             }
+            
         } catch (e) {
+            if (DEBUG_MODE) console.log('⚠️ Business profile check failed:', e.message);
             // Not a business account or can't access business info
         }
         
@@ -213,19 +285,27 @@ async function checkWhatsAppNumber(number) {
         };
         
     } catch (error) {
-        console.error('خطأ في فحص رقم الواتساب:', error);
-        throw new Error('فشل في فحص الرقم: ' + error.message);
+        console.error('❌ Error checking WhatsApp number:', error);
+        throw new Error('Failed to check number: ' + error.message);
     }
 }
 
 // API Routes
 
 // Get client status
-app.get('/api/status', (req, res) => {
+app.get('/api/status', async (req, res) => {
+    let accountInfo = null;
+    
+    // If connected, try to get account information
+    if (clientStatus === 'connected') {
+        accountInfo = await getConnectedAccountInfo();
+    }
+    
     res.json({
         status: clientStatus,
         qrCode: qrCode,
-        connected: clientStatus === 'connected'
+        connected: clientStatus === 'connected',
+        accountInfo: accountInfo
     });
 });
 
@@ -252,14 +332,14 @@ app.post('/api/check-whatsapp', async (req, res) => {
         if (!number) {
             return res.status(400).json({
                 success: false,
-                error: 'رقم الهاتف مطلوب'
+                error: 'Phone number is required'
             });
         }
         
         if (clientStatus !== 'connected') {
             return res.status(503).json({
                 success: false,
-                error: 'عميل الواتساب غير متصل',
+                error: 'WhatsApp client is not connected',
                 status: clientStatus
             });
         }
@@ -272,7 +352,7 @@ app.post('/api/check-whatsapp', async (req, res) => {
         });
         
     } catch (error) {
-        console.error('خطأ في فحص الواتساب:', error);
+        console.error('❌ Error checking WhatsApp:', error);
         res.status(500).json({
             success: false,
             error: error.message
@@ -295,7 +375,7 @@ app.post('/api/check-whatsapp-bulk', async (req, res) => {
         if (clientStatus !== 'connected') {
             return res.status(503).json({
                 success: false,
-                error: 'عميل الواتساب غير متصل',
+                error: 'WhatsApp client is not connected',
                 status: clientStatus
             });
         }
@@ -329,7 +409,7 @@ app.post('/api/check-whatsapp-bulk', async (req, res) => {
         });
         
     } catch (error) {
-        console.error('خطأ في فحص الأرقام المتعددة:', error);
+        console.error('❌ Error checking bulk numbers:', error);
         res.status(500).json({
             success: false,
             error: error.message
@@ -353,11 +433,39 @@ app.post('/api/restart', async (req, res) => {
         
         res.json({
             success: true,
-            message: 'تم إعادة تشغيل عميل الواتساب'
+            message: 'WhatsApp client restarted successfully'
         });
         
     } catch (error) {
-        console.error('خطأ في إعادة التشغيل:', error);
+        console.error('❌ Error during restart:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+
+// Disconnect WhatsApp client
+app.post('/api/disconnect', async (req, res) => {
+    try {
+        if (client) {
+            console.log('🔌 Disconnecting WhatsApp client...');
+            await client.close();
+            client = null;
+        }
+        
+        clientStatus = 'disconnected';
+        qrCode = null;
+        
+        console.log('✅ WhatsApp client disconnected successfully');
+        
+        res.json({
+            success: true,
+            message: 'WhatsApp client disconnected successfully',
+            status: clientStatus
+        });
+    } catch (error) {
+        console.error('❌ Error during disconnect:', error);
         res.status(500).json({
             success: false,
             error: error.message
@@ -373,7 +481,7 @@ app.get('/api/image-proxy', async (req, res) => {
         if (!imageUrl) {
             return res.status(400).json({
                 success: false,
-                error: 'رابط الصورة مطلوب'
+                error: 'Image URL is required'
             });
         }
         
@@ -395,10 +503,10 @@ app.get('/api/image-proxy', async (req, res) => {
         });
         
     } catch (error) {
-        console.error('خطأ في بروكسي الصورة:', error);
+        console.error('❌ Error in image proxy:', error);
         res.status(500).json({
             success: false,
-            error: 'خطأ في تحميل الصورة'
+            error: 'Error loading image'
         });
     }
 });
@@ -410,17 +518,17 @@ app.get('/', (req, res) => {
 
 // Error handling middleware
 app.use((error, req, res, next) => {
-    console.error('خطأ في الخادم:', error);
+    console.error('❌ Server error:', error);
     res.status(500).json({
         success: false,
-        error: 'خطأ داخلي في الخادم'
+        error: 'Internal server error'
     });
 });
 
 // Start server
 app.listen(PORT, () => {
-    console.log(`🚀 الخادم يعمل على المنفذ ${PORT}`);
-    console.log(`📱 افتح المتصفح على: http://localhost:${PORT}`);
+    console.log(`🚀 Server running on port ${PORT}`);
+    console.log(`📱 Open browser at: http://localhost:${PORT}`);
     
     // Initialize WhatsApp client
     initializeClient();
@@ -428,13 +536,13 @@ app.listen(PORT, () => {
 
 // Graceful shutdown
 process.on('SIGINT', async () => {
-    console.log('إيقاف الخادم...');
+    console.log('🛑 Shutting down server...');
     
     if (client) {
         try {
             await client.close();
         } catch (error) {
-            console.error('خطأ في إغلاق عميل الواتساب:', error);
+            console.error('❌ Error closing WhatsApp client:', error);
         }
     }
     
@@ -442,13 +550,13 @@ process.on('SIGINT', async () => {
 });
 
 process.on('SIGTERM', async () => {
-    console.log('إيقاف الخادم...');
+    console.log('🛑 Shutting down server...');
     
     if (client) {
         try {
             await client.close();
         } catch (error) {
-            console.error('خطأ في إغلاق عميل الواتساب:', error);
+            console.error('❌ Error closing WhatsApp client:', error);
         }
     }
     
