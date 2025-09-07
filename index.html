@@ -1,139 +1,363 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="en" dir="ltr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>فحص أرقام الواتساب - WhatsApp Number Checker</title>
+    <title>WhatsApp Number Checker - Advanced Phone Verification Tool</title>
     <link rel="stylesheet" href="style.css">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/flag-icon-css/7.2.3/css/flag-icons.min.css" rel="stylesheet">
 </head>
 <body>
-    <div class="container">
-        <!-- Header -->
-        <header class="header">
-            <h1><i class="fab fa-whatsapp"></i> فحص أرقام الواتساب</h1>
-            <p>أداة شاملة لفحص أرقام الواتساب ومعرفة معلومات الشبكة</p>
-            <div id="connection-status" class="connection-status">
-                <i class="fas fa-spinner fa-spin"></i>
-                <span>جاري الاتصال...</span>
-            </div>
-        </header>
-
-        <!-- Navigation -->
-        <nav class="nav-tabs">
-            <button class="tab-btn active" onclick="showTab('whatsapp-checker')">
-                <i class="fab fa-whatsapp"></i> فحص الواتساب
-            </button>
-            <button class="tab-btn" onclick="showTab('number-tools')">
-                <i class="fas fa-tools"></i> أدوات الأرقام
-            </button>
-        </nav>
-
-        <!-- WhatsApp Checker Section -->
-        <div id="whatsapp-checker" class="tab-content active">
-            <div class="section-card">
-                <h2><i class="fas fa-search"></i> فحص رقم واحد</h2>
-                <div class="input-group">
-                    <input type="tel" id="single-number" placeholder="مثال: +962791234567" dir="ltr">
-                    <button onclick="checkSingleNumber()" class="btn-primary">
-                        <i class="fas fa-search"></i> فحص
-                    </button>
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <i class="fab fa-whatsapp"></i>
+                    <span>WA Checker</span>
                 </div>
-                <div id="single-result" class="result-container"></div>
+                <button class="sidebar-toggle" onclick="toggleSidebar()">
+                    <i class="fas fa-bars"></i>
+                </button>
+            </div>
+            
+            <nav class="sidebar-nav">
+                <a href="#" class="nav-item active" onclick="showSection('whatsapp-checker')">
+                    <i class="fab fa-whatsapp"></i>
+                    <span>WhatsApp Checker</span>
+                </a>
+                <a href="#" class="nav-item" onclick="showSection('number-tools')">
+                    <i class="fas fa-tools"></i>
+                    <span>Number Tools</span>
+                </a>
+                <a href="#" class="nav-item" onclick="showSection('file-manager')">
+                    <i class="fas fa-file-alt"></i>
+                    <span>File Manager</span>
+                </a>
+                <a href="#" class="nav-item" onclick="showSection('settings')">
+                    <i class="fas fa-cog"></i>
+                    <span>Settings</span>
+                </a>
+            </nav>
+            
+            <div class="sidebar-footer">
+                <div id="connection-status" class="connection-status">
+                    <i class="fas fa-spinner fa-spin"></i>
+                    <span>Connecting...</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Top Navbar -->
+            <header class="navbar">
+                <div class="navbar-left">
+                    <button class="mobile-menu-btn" onclick="toggleSidebar()">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                    <h1>WhatsApp Number Checker</h1>
+                </div>
                 
-                <!-- Profile Picture Showcase -->
-                <div id="profile-showcase" class="profile-showcase" style="display: none;">
-                    <div class="showcase-header">
-                        <h3><i class="fas fa-user-circle"></i> معاينة صورة الملف الشخصي</h3>
-                        <button onclick="closeProfileShowcase()" class="btn-close">
-                            <i class="fas fa-times"></i>
-                        </button>
-                    </div>
-                    <div class="showcase-content">
-                        <div class="showcase-profile-picture">
-                            <!-- Profile picture will be displayed here -->
+                <div class="navbar-right">
+                    <div class="account-info">
+                        <div class="account-details">
+                            <span id="account-name">Not Connected</span>
+                            <small id="account-status">Click to connect WhatsApp</small>
                         </div>
-                        <div class="showcase-info">
-                            <h4 id="showcase-number"></h4>
-                            <p id="showcase-name"></p>
-                            <div class="showcase-actions">
-                                <button onclick="downloadProfilePicture()" class="btn-secondary">
-                                    <i class="fas fa-download"></i> تحميل الصورة
+                        <div class="account-avatar" onclick="showAccountModal()">
+                            <i class="fas fa-user-circle"></i>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Content Area -->
+            <div class="content-wrapper">
+
+                <!-- WhatsApp Checker Section -->
+                <section id="whatsapp-checker" class="content-section active">
+                    <div class="section-header">
+                        <h2><i class="fas fa-search"></i> Single Number Check</h2>
+                        <p>Check if a phone number has WhatsApp and get detailed information</p>
+                    </div>
+                    
+                    <div class="section-card">
+                        <div class="card-header">
+                            <h3>Check Single Number</h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="input-group">
+                                <input type="tel" id="single-number" placeholder="Example: +962791234567" dir="ltr">
+                                <button onclick="checkSingleNumber()" class="btn-primary">
+                                    <i class="fas fa-search"></i> Check
                                 </button>
-                                <button onclick="openProfilePictureFullscreen()" class="btn-secondary">
-                                    <i class="fas fa-expand"></i> عرض بالحجم الكامل
+                            </div>
+                            
+                            <!-- Results DataTable -->
+                            <div id="single-result-table" class="datatable-container" style="display: none;">
+                                <table class="custom-datatable">
+                                    <thead>
+                                        <tr>
+                                            <th>Number</th>
+                                            <th>Country</th>
+                                            <th>WhatsApp Status</th>
+                                            <th>Account Type</th>
+                                            <th>Name</th>
+                                            <th>Profile Picture</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="single-result-tbody">
+                                    </tbody>
+                                </table>
+                            </div>
+                            
+                            <div id="single-result" class="result-container"></div>
+                        </div>
+                    </div>
+
+                    <div class="section-card">
+                        <div class="card-header">
+                            <h3>Bulk Number Check</h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="file-upload-area">
+                                <input type="file" id="numbers-file" accept=".txt,.csv" style="display: none;">
+                                <div class="upload-zone" onclick="document.getElementById('numbers-file').click()">
+                                    <i class="fas fa-cloud-upload-alt"></i>
+                                    <p>Choose file containing phone numbers</p>
+                                    <small>Supports TXT and CSV files (one number per line or column)</small>
+                                </div>
+                            </div>
+                            <button onclick="checkBulkNumbers()" class="btn-primary" style="margin-top: 10px;">
+                                <i class="fas fa-search"></i> Check All Numbers
+                            </button>
+                            <div id="bulk-progress" class="progress-container" style="display: none;">
+                                <div class="progress-bar">
+                                    <div class="progress-fill"></div>
+                                </div>
+                                <div class="progress-text">0%</div>
+                            </div>
+                            <div id="bulk-summary" class="results-summary" style="display: none;"></div>
+                            <div id="bulk-result" class="result-container"></div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Number Tools Section -->
+                <section id="number-tools" class="content-section">
+                    <div class="section-header">
+                        <h2><i class="fas fa-tools"></i> Number Tools</h2>
+                        <p>Advanced phone number analysis and carrier detection</p>
+                    </div>
+                    
+                    <div class="section-card">
+                        <div class="card-header">
+                            <h3>Carrier Detection</h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="input-group">
+                                <input type="tel" id="carrier-number" placeholder="Example: +1234567890" dir="ltr">
+                                <button onclick="checkCarrier()" class="btn-primary">
+                                    <i class="fas fa-search"></i> Check Carrier
                                 </button>
+                            </div>
+                            
+                            <!-- Carrier Results DataTable -->
+                            <div id="carrier-result-table" class="datatable-container" style="display: none;">
+                                <table class="custom-datatable">
+                                    <thead>
+                                        <tr>
+                                            <th>Number</th>
+                                            <th>Country</th>
+                                            <th>Carrier</th>
+                                            <th>Number Type</th>
+                                            <th>Region</th>
+                                            <th>Time Zone</th>
+                                            <th>Valid</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="carrier-result-tbody">
+                                    </tbody>
+                                </table>
+                            </div>
+                            
+                            <div id="carrier-result" class="result-container"></div>
+                        </div>
+                    </div>
+
+                    <div class="section-card">
+                        <div class="card-header">
+                            <h3>Bulk Carrier Check</h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="file-upload-area">
+                                <input type="file" id="carriers-file" accept=".txt,.csv" style="display: none;">
+                                <div class="upload-zone" onclick="document.getElementById('carriers-file').click()">
+                                    <i class="fas fa-cloud-upload-alt"></i>
+                                    <p>Choose file containing phone numbers</p>
+                                    <small>Supports TXT and CSV files (one number per line or column)</small>
+                                </div>
+                            </div>
+                            <button onclick="checkBulkCarriers()" class="btn-primary" style="margin-top: 10px;">
+                                <i class="fas fa-search"></i> Check All Carriers
+                            </button>
+                            <div id="bulk-carrier-result" class="result-container"></div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- File Manager Section -->
+                <section id="file-manager" class="content-section">
+                    <div class="section-header">
+                        <h2><i class="fas fa-file-alt"></i> File Manager</h2>
+                        <p>Manage phone number files - add/remove prefixes, split files, and export results</p>
+                    </div>
+                    
+                    <div class="section-card">
+                        <div class="card-header">
+                            <h3>File Manipulation Tools</h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="file-upload-area">
+                                <input type="file" id="manage-file" accept=".txt,.csv" style="display: none;">
+                                <div class="upload-zone" onclick="document.getElementById('manage-file').click()">
+                                    <i class="fas fa-cloud-upload-alt"></i>
+                                    <p>Choose file to manage</p>
+                                    <small>Supports TXT and CSV files</small>
+                                </div>
+                            </div>
+                            
+                            <div class="file-tools" style="margin-top: 20px; display: none;" id="file-tools">
+                                <div class="tool-group">
+                                    <h4>Prefix Management</h4>
+                                    <div class="button-group">
+                                        <button onclick="addPrefixToFile()" class="btn-secondary">
+                                            <i class="fas fa-plus"></i> Add + Prefix
+                                        </button>
+                                        <button onclick="removePrefixFromFile()" class="btn-secondary">
+                                            <i class="fas fa-minus"></i> Remove + Prefix
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                <div class="tool-group">
+                                    <h4>File Splitting</h4>
+                                    <div class="split-controls">
+                                        <div class="input-group">
+                                            <input type="number" id="split-size" placeholder="Numbers per file" min="1" value="1000">
+                                            <input type="text" id="split-prefix" placeholder="File name prefix" value="numbers_part">
+                                        </div>
+                                        <button onclick="splitFile()" class="btn-secondary">
+                                            <i class="fas fa-cut"></i> Split File
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                <div class="tool-group">
+                                    <h4>Export Options</h4>
+                                    <div class="button-group">
+                                        <button onclick="downloadProcessedFiles()" class="btn-primary">
+                                            <i class="fas fa-download"></i> Download Files
+                                        </button>
+                                        <button onclick="downloadAsZip()" class="btn-primary">
+                                            <i class="fas fa-file-archive"></i> Download as ZIP
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div id="file-preview" class="file-preview" style="display: none;">
+                                <h4>File Preview (First 10 lines):</h4>
+                                <pre id="file-content-preview"></pre>
                             </div>
                         </div>
                     </div>
-                </div>
-            </div>
+                </section>
 
-            <div class="section-card">
-                <h2><i class="fas fa-file-upload"></i> فحص ملف أرقام</h2>
-                <div class="file-upload-area">
-                    <input type="file" id="numbers-file" accept=".txt,.csv" style="display: none;">
-                    <div class="upload-zone" onclick="document.getElementById('numbers-file').click()">
-                        <i class="fas fa-cloud-upload-alt"></i>
-                        <p>اختر ملف يحتوي على الأرقام</p>
-                        <small>يدعم ملفات TXT و CSV (كل رقم في سطر منفصل أو عمود)</small>
+                <!-- Settings Section -->
+                <section id="settings" class="content-section">
+                    <div class="section-header">
+                        <h2><i class="fas fa-cog"></i> Settings</h2>
+                        <p>Configure application settings and WhatsApp connection</p>
                     </div>
-                </div>
-                <button onclick="checkBulkNumbers()" class="btn-primary" style="margin-top: 10px;">
-                    <i class="fas fa-search"></i> فحص جميع الأرقام
-                </button>
-                <div id="bulk-progress" class="progress-container" style="display: none;">
-                    <div class="progress-bar">
-                        <div class="progress-fill"></div>
+                    
+                    <div class="section-card">
+                        <div class="card-header">
+                            <h3>WhatsApp Connection</h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="connection-info">
+                                <div class="connection-status-details">
+                                    <h4>Connection Status</h4>
+                                    <div id="detailed-connection-status" class="status-details">
+                                        <div class="status-item">
+                                            <span class="label">Status:</span>
+                                            <span class="value" id="connection-state">Disconnected</span>
+                                        </div>
+                                        <div class="status-item">
+                                            <span class="label">Connected Account:</span>
+                                            <span class="value" id="connected-account">None</span>
+                                        </div>
+                                        <div class="status-item">
+                                            <span class="label">Last Connected:</span>
+                                            <span class="value" id="last-connected">Never</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="connection-actions">
+                                    <button onclick="connectWhatsApp()" class="btn-primary" id="connect-btn">
+                                        <i class="fas fa-qrcode"></i> Connect WhatsApp
+                                    </button>
+                                    <button onclick="disconnectWhatsApp()" class="btn-danger" id="disconnect-btn" style="display: none;">
+                                        <i class="fas fa-unlink"></i> Disconnect
+                                    </button>
+                                    <button onclick="refreshConnection()" class="btn-secondary">
+                                        <i class="fas fa-sync"></i> Refresh Status
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    <div class="progress-text">0%</div>
-                </div>
-                <div id="bulk-summary" class="results-summary" style="display: none;"></div>
-                <div id="bulk-result" class="result-container"></div>
-            </div>
-        </div>
-
-        <!-- Number Tools Section -->
-        <div id="number-tools" class="tab-content">
-            <div class="section-card">
-                <h2><i class="fas fa-satellite-dish"></i> معرفة مشغل الشبكة</h2>
-                <div class="input-group">
-                    <input type="tel" id="carrier-number" placeholder="مثال: +1234567890" dir="ltr">
-                    <button onclick="checkCarrier()" class="btn-primary">
-                        <i class="fas fa-search"></i> فحص المشغل
-                    </button>
-                </div>
-                <div id="carrier-result" class="result-container"></div>
-            </div>
-
-            <div class="section-card">
-                <h2><i class="fas fa-file-upload"></i> فحص مشغلات ملف أرقام</h2>
-                <div class="file-upload-area">
-                    <input type="file" id="carriers-file" accept=".txt,.csv" style="display: none;">
-                    <div class="upload-zone" onclick="document.getElementById('carriers-file').click()">
-                        <i class="fas fa-cloud-upload-alt"></i>
-                        <p>اختر ملف يحتوي على الأرقام</p>
-                        <small>يدعم ملفات TXT و CSV (كل رقم في سطر منفصل أو عمود)</small>
+                    
+                    <div class="section-card">
+                        <div class="card-header">
+                            <h3>Application Settings</h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="settings-group">
+                                <div class="setting-item">
+                                    <label for="check-delay">Delay between checks (ms):</label>
+                                    <input type="number" id="check-delay" value="1000" min="500" max="5000">
+                                </div>
+                                <div class="setting-item">
+                                    <label for="retry-attempts">Retry attempts for failed checks:</label>
+                                    <input type="number" id="retry-attempts" value="3" min="1" max="10">
+                                </div>
+                                <div class="setting-item">
+                                    <label for="export-format">Default export format:</label>
+                                    <select id="export-format">
+                                        <option value="csv">CSV</option>
+                                        <option value="txt">TXT</option>
+                                        <option value="json">JSON</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                </div>
-                <button onclick="checkBulkCarriers()" class="btn-primary" style="margin-top: 10px;">
-                    <i class="fas fa-search"></i> فحص جميع المشغلات
-                </button>
-                <div id="bulk-carrier-result" class="result-container"></div>
+                </section>
             </div>
-        </div>
-
-        <!-- Footer -->
-        <footer class="footer">
-            <p>&copy; 2024 فحص أرقام الواتساب - جميع الحقوق محفوظة</p>
-        </footer>
+        </main>
     </div>
 
     <!-- Loading Modal -->
     <div id="loading-modal" class="modal" style="display: none;">
         <div class="modal-content">
             <div class="loading-spinner"></div>
-            <p>جاري الفحص...</p>
+            <p>Checking numbers...</p>
         </div>
     </div>
 
@@ -141,39 +365,162 @@
     <div id="qr-modal" class="modal" style="display: none;">
         <div class="modal-content">
             <div class="modal-header">
-                <h3><i class="fab fa-whatsapp"></i> تسجيل الدخول إلى الواتساب</h3>
+                <h3><i class="fab fa-whatsapp"></i> Connect to WhatsApp</h3>
                 <button class="close-btn" onclick="closeQRModal()">&times;</button>
             </div>
             <div class="qr-container">
-                <p>امسح رمز QR هذا بهاتفك للاتصال بالواتساب</p>
+                <p>Scan this QR code with your phone to connect to WhatsApp</p>
                 <div id="qr-code-container">
                     <div class="qr-loading">
                         <i class="fas fa-spinner fa-spin"></i>
-                        <p>جاري إنشاء رمز QR...</p>
+                        <p>Generating QR code...</p>
                     </div>
                 </div>
                 <div class="qr-instructions">
-                    <h4>خطوات التسجيل:</h4>
+                    <h4>Connection Steps:</h4>
                     <ol>
-                        <li>افتح واتساب على هاتفك</li>
-                        <li>اذهب إلى القائمة (النقاط الثلاث) > الأجهزة المرتبطة</li>
-                        <li>اضغط على "ربط جهاز"</li>
-                        <li>امسح رمز QR المعروض أعلاه</li>
+                        <li>Open WhatsApp on your phone</li>
+                        <li>Go to Menu (three dots) > Linked Devices</li>
+                        <li>Tap "Link a Device"</li>
+                        <li>Scan the QR code shown above</li>
                     </ol>
                 </div>
             </div>
             <div class="modal-footer">
                 <button onclick="refreshQR()" class="btn-secondary">
-                    <i class="fas fa-sync"></i> تحديث الرمز
+                    <i class="fas fa-sync"></i> Refresh Code
                 </button>
                 <button onclick="retryConnection()" class="btn-primary">
-                    <i class="fas fa-retry"></i> إعادة المحاولة
+                    <i class="fas fa-retry"></i> Retry Connection
                 </button>
             </div>
         </div>
     </div>
 
+    <!-- Account Modal -->
+    <div id="account-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-user"></i> Account Information</h3>
+                <button class="close-btn" onclick="closeAccountModal()">&times;</button>
+            </div>
+            <div class="account-details-modal">
+                <div class="account-avatar-large">
+                    <img id="account-avatar-img" src="" alt="Account Avatar" style="display: none;">
+                    <i class="fas fa-user-circle" id="account-avatar-icon"></i>
+                </div>
+                <div class="account-info-details">
+                    <h4 id="modal-account-name">Not Connected</h4>
+                    <p id="modal-account-number">No WhatsApp account connected</p>
+                    <div class="account-stats">
+                        <div class="stat">
+                            <span class="stat-label">Numbers Checked:</span>
+                            <span class="stat-value" id="numbers-checked">0</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-label">Session Time:</span>
+                            <span class="stat-value" id="session-time">0:00</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button onclick="disconnectWhatsApp()" class="btn-danger">
+                    <i class="fas fa-unlink"></i> Disconnect
+                </button>
+                <button onclick="refreshAccountInfo()" class="btn-secondary">
+                    <i class="fas fa-sync"></i> Refresh Info
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Profile Picture Showcase -->
+    <div id="profile-showcase" class="profile-showcase" style="display: none;">
+        <div class="showcase-header">
+            <h3><i class="fas fa-user-circle"></i> Profile Picture Preview</h3>
+            <button onclick="closeProfileShowcase()" class="btn-close">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="showcase-content">
+            <div class="showcase-profile-picture">
+                <!-- Profile picture will be displayed here -->
+            </div>
+            <div class="showcase-info">
+                <h4 id="showcase-number"></h4>
+                <p id="showcase-name"></p>
+                <div class="showcase-actions">
+                    <button onclick="downloadProfilePicture()" class="btn-secondary">
+                        <i class="fas fa-download"></i> Download Image
+                    </button>
+                    <button onclick="openProfilePictureFullscreen()" class="btn-secondary">
+                        <i class="fas fa-expand"></i> View Full Size
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Professional Footer -->
+    <footer class="professional-footer">
+        <div class="footer-content">
+            <div class="footer-section">
+                <div class="footer-logo">
+                    <i class="fab fa-whatsapp"></i>
+                    <span>WhatsApp Checker</span>
+                </div>
+                <p>Advanced phone verification and WhatsApp analysis tool for professionals.</p>
+                <div class="social-links">
+                    <a href="#" aria-label="GitHub"><i class="fab fa-github"></i></a>
+                    <a href="#" aria-label="Twitter"><i class="fab fa-twitter"></i></a>
+                    <a href="#" aria-label="LinkedIn"><i class="fab fa-linkedin"></i></a>
+                </div>
+            </div>
+            
+            <div class="footer-section">
+                <h4>Features</h4>
+                <ul>
+                    <li><a href="#">WhatsApp Verification</a></li>
+                    <li><a href="#">Carrier Detection</a></li>
+                    <li><a href="#">Bulk Processing</a></li>
+                    <li><a href="#">File Management</a></li>
+                </ul>
+            </div>
+            
+            <div class="footer-section">
+                <h4>Support</h4>
+                <ul>
+                    <li><a href="#">Documentation</a></li>
+                    <li><a href="#">API Reference</a></li>
+                    <li><a href="#">Contact Support</a></li>
+                    <li><a href="#">Report Issues</a></li>
+                </ul>
+            </div>
+            
+            <div class="footer-section">
+                <h4>Legal</h4>
+                <ul>
+                    <li><a href="#">Privacy Policy</a></li>
+                    <li><a href="#">Terms of Service</a></li>
+                    <li><a href="#">Cookie Policy</a></li>
+                    <li><a href="#">Compliance</a></li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="footer-bottom">
+            <div class="footer-copyright">
+                <p>&copy; 2024 WhatsApp Checker. All rights reserved.</p>
+            </div>
+            <div class="footer-version">
+                <span>Version 2.0.0</span>
+            </div>
+        </div>
+    </footer>
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/libphonenumber-js/1.10.44/libphonenumber-js.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="script.js"></script>
 </body>
 </html>
