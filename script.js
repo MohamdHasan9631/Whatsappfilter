@@ -200,6 +200,7 @@ async function checkBackendStatus() {
         
         backendStatus = data.status;
         updateConnectionStatus(data.status, data.qrCode);
+        updateSettingsConnectionStatus(data.status, data.accountInfo);
         
         // Update account info if connected
         if (data.status === 'connected' && data.accountInfo) {
@@ -211,7 +212,55 @@ async function checkBackendStatus() {
         console.error('Server connection error:', error);
         backendStatus = 'error';
         updateConnectionStatus('error');
+        updateSettingsConnectionStatus('error');
         return null;
+    }
+}
+
+// Update connection status in settings page
+function updateSettingsConnectionStatus(status, accountInfo = null) {
+    const connectionState = document.getElementById('connection-state');
+    const connectedAccount = document.getElementById('connected-account');
+    const lastConnected = document.getElementById('last-connected');
+    
+    if (!connectionState || !connectedAccount || !lastConnected) {
+        return; // Elements not found, probably not on settings page
+    }
+    
+    switch (status) {
+        case 'connected':
+            connectionState.textContent = 'متصل';
+            connectionState.style.color = '#25D366';
+            if (accountInfo && accountInfo.name) {
+                connectedAccount.textContent = accountInfo.name;
+            } else if (accountInfo && accountInfo.number) {
+                connectedAccount.textContent = accountInfo.number;
+            } else {
+                connectedAccount.textContent = 'حساب متصل';
+            }
+            lastConnected.textContent = new Date().toLocaleString('ar-SA');
+            break;
+            
+        case 'connecting':
+        case 'initializing':
+            connectionState.textContent = 'جاري الاتصال...';
+            connectionState.style.color = '#ffa726';
+            connectedAccount.textContent = 'لا يوجد';
+            break;
+            
+        case 'disconnected':
+            connectionState.textContent = 'غير متصل';
+            connectionState.style.color = '#ff5722';
+            connectedAccount.textContent = 'لا يوجد';
+            break;
+            
+        case 'error':
+        default:
+            connectionState.textContent = 'خطأ في الاتصال بالخادم';
+            connectionState.style.color = '#f44336';
+            connectedAccount.textContent = 'لا يوجد';
+            lastConnected.textContent = 'أبداً';
+            break;
     }
 }
 
@@ -1369,10 +1418,15 @@ function displayWhatsAppResult(container, data) {
             </div>
         `;
     } else {
+        const profilePictureUrl = extractProfilePictureUrl(data.profilePicture);
+        
         resultDiv.innerHTML = `
             <div class="result-header">
                 <div class="result-avatar">
-                    <i class="fas fa-phone"></i>
+                    ${data.hasWhatsApp && profilePictureUrl ? 
+                        createProfilePictureComponent(data.profilePicture, data.number, false) :
+                        '<i class="fas fa-phone"></i>'
+                    }
                 </div>
                 <div class="result-info">
                     <h3>${data.number}</h3>
@@ -2189,7 +2243,11 @@ function createMockResults() {
             isBusiness: false,
             name: 'Ahmed Ali',
             country: 'Jordan',
-            profilePicture: true
+            profilePicture: {
+                imgFull: 'https://picsum.photos/200/200?random=1',
+                img: 'https://picsum.photos/128/128?random=1',
+                eurl: 'https://picsum.photos/64/64?random=1'
+            }
         },
         {
             number: '+966501234567',
@@ -2198,7 +2256,7 @@ function createMockResults() {
             name: 'Mohammed Hassan',
             country: 'Saudi Arabia',
             businessInfo: 'Tech Company',
-            profilePicture: false
+            profilePicture: null
         },
         {
             number: '+1234567890',
@@ -2212,7 +2270,19 @@ function createMockResults() {
             name: 'Fatima Al-Zahra',
             country: 'UAE',
             businessInfo: 'Restaurant Chain',
-            profilePicture: true
+            profilePicture: 'https://picsum.photos/150/150?random=2'
+        },
+        {
+            number: '+201234567890',
+            hasWhatsApp: true,
+            isBusiness: false,
+            name: 'Sara Ahmed',
+            country: 'Egypt',
+            profilePicture: {
+                imgFull: 'https://invalid-url-should-fallback.test/image.jpg',
+                img: 'https://picsum.photos/128/128?random=3',
+                eurl: 'https://picsum.photos/64/64?random=3'
+            }
         },
         {
             number: '+invalid123',
@@ -2632,6 +2702,20 @@ function initializeToggleSwitches() {
         const savedValue = localStorage.getItem(toggle.id);
         if (savedValue !== null) {
             toggle.checked = savedValue === 'true';
+            // Apply the setting immediately
+            const setting = toggle.id;
+            const enabled = toggle.checked;
+            switch(setting) {
+                case 'dark-mode':
+                    handleDarkMode(enabled);
+                    break;
+                case 'auto-save':
+                    handleAutoSave(enabled);
+                    break;
+                case 'notifications':
+                    handleNotifications(enabled);
+                    break;
+            }
         }
     });
 }
