@@ -4,25 +4,112 @@ let checkingProgress = 0;
 let totalNumbers = 0;
 let backendStatus = 'connecting';
 let statusCheckInterval = null;
+let currentResults = [];
+let isTableView = true; // Default to table view
+let currentFileData = null;
+let processedFiles = [];
+let numbersChecked = 0;
+let sessionStartTime = Date.now();
 
 // Backend API configuration
 const API_BASE = window.location.origin; // Same domain as frontend
 
-// Tab switching functionality
-function showTab(tabName) {
-    // Hide all tab contents
-    const tabContents = document.querySelectorAll('.tab-content');
-    tabContents.forEach(tab => tab.classList.remove('active'));
+// Sidebar and navigation functionality
+function toggleSidebar() {
+    const sidebar = document.querySelector('.sidebar');
+    const mainContent = document.querySelector('.main-content');
     
-    // Hide all tab buttons active state
-    const tabButtons = document.querySelectorAll('.tab-btn');
-    tabButtons.forEach(btn => btn.classList.remove('active'));
+    sidebar.classList.toggle('collapsed');
+    sidebar.classList.toggle('show');
+    mainContent.classList.toggle('sidebar-collapsed');
+}
+
+function showSection(sectionName) {
+    // Hide all sections
+    const sections = document.querySelectorAll('.content-section');
+    sections.forEach(section => section.classList.remove('active'));
     
-    // Show selected tab content
-    document.getElementById(tabName).classList.add('active');
+    // Remove active state from all nav items
+    const navItems = document.querySelectorAll('.nav-item');
+    navItems.forEach(item => item.classList.remove('active'));
     
-    // Activate corresponding button
-    event.target.classList.add('active');
+    // Show selected section
+    const targetSection = document.getElementById(sectionName);
+    if (targetSection) {
+        targetSection.classList.add('active');
+    }
+    
+    // Activate corresponding nav item
+    const clickedItem = event?.target.closest('.nav-item');
+    if (clickedItem) {
+        clickedItem.classList.add('active');
+    }
+    
+    // Close sidebar on mobile after selection
+    if (window.innerWidth <= 768) {
+        const sidebar = document.querySelector('.sidebar');
+        sidebar.classList.remove('show');
+    }
+}
+
+// Account and connection management
+function showAccountModal() {
+    document.getElementById('account-modal').style.display = 'flex';
+    updateAccountModalInfo();
+}
+
+function closeAccountModal() {
+    document.getElementById('account-modal').style.display = 'none';
+}
+
+function updateAccountModalInfo() {
+    const connectedAccount = document.getElementById('connected-account').textContent;
+    const accountName = document.getElementById('modal-account-name');
+    const accountNumber = document.getElementById('modal-account-number');
+    const numbersCheckedEl = document.getElementById('numbers-checked');
+    const sessionTimeEl = document.getElementById('session-time');
+    
+    if (connectedAccount && connectedAccount !== 'None') {
+        accountName.textContent = connectedAccount;
+        accountNumber.textContent = connectedAccount;
+    } else {
+        accountName.textContent = 'Not Connected';
+        accountNumber.textContent = 'No WhatsApp account connected';
+    }
+    
+    numbersCheckedEl.textContent = numbersChecked.toString();
+    
+    const sessionTime = Math.floor((Date.now() - sessionStartTime) / 1000);
+    const minutes = Math.floor(sessionTime / 60);
+    const seconds = sessionTime % 60;
+    sessionTimeEl.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+}
+
+function refreshAccountInfo() {
+    checkBackendStatus();
+    updateAccountModalInfo();
+}
+
+function connectWhatsApp() {
+    showQRModal();
+}
+
+function disconnectWhatsApp() {
+    // Implementation for disconnecting WhatsApp
+    fetch(`${API_BASE}/disconnect`, { method: 'POST' })
+        .then(response => response.json())
+        .then(data => {
+            updateConnectionStatus('disconnected');
+            updateAccountInfo('Not Connected', 'Click to connect WhatsApp');
+            closeAccountModal();
+        })
+        .catch(error => {
+            console.error('Error disconnecting:', error);
+        });
+}
+
+function refreshConnection() {
+    checkBackendStatus();
 }
 
 // Phone number validation and formatting with enhanced error messages
@@ -30,7 +117,7 @@ function validatePhoneNumber(number) {
     try {
         // Check if number is provided
         if (!number || typeof number !== 'string') {
-            return { valid: false, error: 'يرجى إدخال رقم هاتف صحيح' };
+            return { valid: false, error: 'Please enter a valid phone number' };
         }
         
         // Remove all non-digit characters except +
@@ -38,14 +125,14 @@ function validatePhoneNumber(number) {
         
         // Check if number is empty after cleaning
         if (!cleanNumber) {
-            return { valid: false, error: 'الرقم المدخل فارغ أو يحتوي على رموز غير صحيحة' };
+            return { valid: false, error: 'The entered number is empty or contains invalid characters' };
         }
         
         // Basic validation
         if (!cleanNumber.startsWith('+')) {
             return { 
                 valid: false, 
-                error: 'الرقم يجب أن يبدأ برمز + متبوعاً برمز الدولة (مثال: +962791234567)' 
+                error: 'Number must start with + followed by country code (e.g., +962791234567)' 
             };
         }
         
@@ -53,7 +140,7 @@ function validatePhoneNumber(number) {
         if (cleanNumber.length < 10) {
             return { 
                 valid: false, 
-                error: `الرقم قصير جداً. يجب أن يحتوي على 10-15 رقم (العدد الحالي: ${cleanNumber.length - 1})` 
+                error: `Number is too short. Should contain 10-15 digits (current: ${cleanNumber.length - 1})` 
             };
         }
         
@@ -61,13 +148,13 @@ function validatePhoneNumber(number) {
         if (cleanNumber.length > 15) {
             return { 
                 valid: false, 
-                error: `الرقم طويل جداً. يجب أن يحتوي على 10-15 رقم (العدد الحالي: ${cleanNumber.length - 1})` 
+                error: `Number is too long. Should contain 10-15 digits (current: ${cleanNumber.length - 1})` 
             };
         }
         
         // Check if it's just a + sign
         if (cleanNumber === '+') {
-            return { valid: false, error: 'يرجى إدخال رقم الهاتف بعد رمز +' };
+            return { valid: false, error: 'Please enter the phone number after the + sign' };
         }
         
         // Use libphonenumber for validation if available
@@ -85,13 +172,13 @@ function validatePhoneNumber(number) {
                 } else {
                     return { 
                         valid: false, 
-                        error: `صيغة الرقم غير صحيحة للدولة المحددة. تحقق من رمز الدولة ورقم الهاتف` 
+                        error: `Invalid number format for the specified country. Check country code and phone number` 
                     };
                 }
             } catch (e) {
                 return { 
                     valid: false, 
-                    error: `خطأ في تحليل الرقم: ${e.message || 'صيغة غير مدعومة'}` 
+                    error: `Error parsing number: ${e.message || 'Unsupported format'}` 
                 };
             }
         }
@@ -100,7 +187,7 @@ function validatePhoneNumber(number) {
     } catch (error) {
         return { 
             valid: false, 
-            error: `خطأ غير متوقع في معالجة الرقم: ${error.message || 'خطأ غير معروف'}` 
+            error: `Unexpected error processing number: ${error.message || 'Unknown error'}` 
         };
     }
 }
@@ -114,9 +201,14 @@ async function checkBackendStatus() {
         backendStatus = data.status;
         updateConnectionStatus(data.status, data.qrCode);
         
+        // Update account info if connected
+        if (data.status === 'connected' && data.accountInfo) {
+            updateAccountInfo(data.accountInfo.name || data.accountInfo.number, 'Connected and ready');
+        }
+        
         return data;
     } catch (error) {
-        console.error('خطأ في الاتصال بالخادم:', error);
+        console.error('Server connection error:', error);
         backendStatus = 'error';
         updateConnectionStatus('error');
         return null;
@@ -134,30 +226,223 @@ function updateConnectionStatus(status, qrCode = null) {
         case 'connecting':
         case 'initializing':
             statusElement.classList.add('connecting');
-            statusElement.innerHTML = '<i class="fas fa-spinner fa-spin"></i><span>جاري الاتصال...</span>';
+            statusElement.innerHTML = '<i class="fas fa-spinner fa-spin"></i><span>Connecting...</span>';
             break;
             
         case 'connected':
             statusElement.classList.add('connected');
-            statusElement.innerHTML = '<i class="fas fa-check-circle"></i><span>متصل - جاهز للفحص</span>';
+            statusElement.innerHTML = '<i class="fas fa-check-circle"></i><span>Connected - Ready to check</span>';
             break;
             
         case 'qr_ready':
-            statusElement.classList.add('qr-ready');
-            statusElement.innerHTML = '<i class="fas fa-qrcode"></i><span>اضغط لعرض رمز QR</span>';
+            statusElement.classList.add('connecting');
+            statusElement.innerHTML = '<i class="fas fa-qrcode"></i><span>Click to show QR code</span>';
             statusElement.onclick = () => showQRModal(qrCode);
+            statusElement.style.cursor = 'pointer';
             break;
             
         case 'disconnected':
             statusElement.classList.add('disconnected');
-            statusElement.innerHTML = '<i class="fas fa-times-circle"></i><span>غير متصل</span>';
+            statusElement.innerHTML = '<i class="fas fa-times-circle"></i><span>Disconnected</span>';
             break;
             
         case 'error':
         default:
-            statusElement.classList.add('disconnected');
-            statusElement.innerHTML = '<i class="fas fa-exclamation-triangle"></i><span>خطأ في الاتصال</span>';
+            statusElement.classList.add('error');
+            statusElement.innerHTML = '<i class="fas fa-exclamation-triangle"></i><span>Connection error</span>';
             break;
+    }
+}
+
+// Update account information in navbar
+function updateAccountInfo(name, status) {
+    const accountName = document.getElementById('account-name');
+    const accountStatus = document.getElementById('account-status');
+    const connectedAccount = document.getElementById('connected-account');
+    
+    if (accountName) accountName.textContent = name;
+    if (accountStatus) accountStatus.textContent = status;
+    if (connectedAccount) connectedAccount.textContent = name !== 'Not Connected' ? name : 'None';
+}
+
+// Country code to flag mapping for better flag display
+function getCountryFlag(countryCode) {
+    if (!countryCode) return '';
+    return `<span class="fi fi-${countryCode.toLowerCase()}" title="${getCountryName(countryCode)}"></span>`;
+}
+
+// Enhanced country name mapping
+function getCountryName(countryCode) {
+    const countries = {
+        'US': 'United States',
+        'CA': 'Canada', 
+        'GB': 'United Kingdom',
+        'JO': 'Jordan',
+        'SA': 'Saudi Arabia',
+        'AE': 'United Arab Emirates',
+        'EG': 'Egypt',
+        'LB': 'Lebanon',
+        'SY': 'Syria',
+        'IQ': 'Iraq',
+        'KW': 'Kuwait',
+        'QA': 'Qatar',
+        'BH': 'Bahrain',
+        'OM': 'Oman',
+        'YE': 'Yemen',
+        'PS': 'Palestine',
+        'FR': 'France',
+        'DE': 'Germany',
+        'IT': 'Italy',
+        'ES': 'Spain',
+        'AU': 'Australia',
+        'NZ': 'New Zealand',
+        'IN': 'India',
+        'PK': 'Pakistan',
+        'BD': 'Bangladesh',
+        'MY': 'Malaysia',
+        'SG': 'Singapore',
+        'TH': 'Thailand',
+        'PH': 'Philippines',
+        'ID': 'Indonesia',
+        'VN': 'Vietnam',
+        'CN': 'China',
+        'JP': 'Japan',
+        'KR': 'South Korea',
+        'RU': 'Russia',
+        'TR': 'Turkey',
+        'IR': 'Iran',
+        'IL': 'Israel',
+        'BR': 'Brazil',
+        'MX': 'Mexico',
+        'AR': 'Argentina',
+        'CL': 'Chile',
+        'CO': 'Colombia',
+        'PE': 'Peru',
+        'ZA': 'South Africa',
+        'NG': 'Nigeria',
+        'KE': 'Kenya',
+        'GH': 'Ghana',
+        'ET': 'Ethiopia',
+        'MA': 'Morocco',
+        'DZ': 'Algeria',
+        'TN': 'Tunisia',
+        'LY': 'Libya'
+    };
+    
+    return countries[countryCode] || countryCode;
+}
+
+// Get timezone information for country
+function getTimeZoneInfo(countryCode) {
+    const timeZones = {
+        'US': 'UTC-5 to UTC-10',
+        'CA': 'UTC-3.5 to UTC-8',
+        'GB': 'UTC+0',
+        'JO': 'UTC+3',
+        'SA': 'UTC+3',
+        'AE': 'UTC+4',
+        'EG': 'UTC+2',
+        'LB': 'UTC+2',
+        'SY': 'UTC+3',
+        'IQ': 'UTC+3',
+        'KW': 'UTC+3',
+        'QA': 'UTC+3',
+        'BH': 'UTC+3',
+        'OM': 'UTC+4',
+        'YE': 'UTC+3',
+        'PS': 'UTC+2',
+        'FR': 'UTC+1',
+        'DE': 'UTC+1',
+        'IT': 'UTC+1',
+        'ES': 'UTC+1',
+        'AU': 'UTC+8 to UTC+11',
+        'NZ': 'UTC+12',
+        'IN': 'UTC+5.5',
+        'CN': 'UTC+8',
+        'JP': 'UTC+9',
+        'KR': 'UTC+9',
+        'RU': 'UTC+2 to UTC+12',
+        'BR': 'UTC-2 to UTC-5',
+        'MX': 'UTC-6 to UTC-8'
+    };
+    
+    return timeZones[countryCode] || 'Unknown';
+}
+
+// Get region information
+function getRegionInfo(countryCode) {
+    const regions = {
+        'US': 'North America',
+        'CA': 'North America',
+        'JO': 'Middle East',
+        'SA': 'Middle East',
+        'AE': 'Middle East',
+        'EG': 'Middle East & Africa',
+        'LB': 'Middle East',
+        'SY': 'Middle East',
+        'IQ': 'Middle East',
+        'KW': 'Middle East',
+        'QA': 'Middle East',
+        'BH': 'Middle East',
+        'OM': 'Middle East',
+        'YE': 'Middle East',
+        'PS': 'Middle East',
+        'FR': 'Europe',
+        'DE': 'Europe',
+        'GB': 'Europe',
+        'IT': 'Europe',
+        'ES': 'Europe',
+        'AU': 'Oceania',
+        'NZ': 'Oceania',
+        'IN': 'Asia',
+        'CN': 'Asia',
+        'JP': 'Asia',
+        'KR': 'Asia',
+        'RU': 'Europe & Asia',
+        'BR': 'South America',
+        'MX': 'North America',
+        'ZA': 'Africa',
+        'NG': 'Africa',
+        'EG': 'Africa'
+    };
+    
+    return regions[countryCode] || 'Unknown';
+}
+
+// Enhanced carrier information with real libphonenumbers integration
+function getCarrierInfo(phoneNumber) {
+    try {
+        if (typeof libphonenumber !== 'undefined') {
+            const phone = libphonenumber.parsePhoneNumber(phoneNumber);
+            if (phone.isValid()) {
+                const country = phone.country;
+                const nationalNumber = phone.nationalNumber;
+                const carrier = getCarrierByCountryAndNumber(country, nationalNumber);
+                
+                return {
+                    country: getCountryName(country),
+                    countryCode: country,
+                    carrier: carrier,
+                    numberType: phone.getType() || 'Unknown',
+                    region: getRegionInfo(country),
+                    timeZone: getTimeZoneInfo(country),
+                    isValid: true,
+                    nationalNumber: nationalNumber,
+                    countryCallingCode: phone.countryCallingCode,
+                    formatted: phone.format('INTERNATIONAL')
+                };
+            }
+        }
+        
+        // Fallback for basic carrier detection
+        return getBasicCarrierInfo(phoneNumber);
+    } catch (error) {
+        return {
+            country: 'Unknown',
+            carrier: 'Unknown',
+            error: 'Cannot determine carrier information',
+            isValid: false
+        };
     }
 }
 
@@ -598,24 +883,26 @@ function getRegionInfo(countryCode) {
 // Single number WhatsApp check
 async function checkSingleNumber() {
     const numberInput = document.getElementById('single-number');
-    const resultContainer = document.getElementById('single-result');
     const phoneNumber = numberInput.value.trim();
     
     if (!phoneNumber) {
-        showMessage(resultContainer, 'يرجى إدخال رقم الهاتف', 'error');
+        showMessage('Please enter a phone number', 'error');
         return;
     }
     
     // Check backend connection
     if (backendStatus !== 'connected') {
-        showMessage(resultContainer, 'عميل الواتساب غير متصل. يرجى التأكد من الاتصال أولاً.', 'error');
+        showMessage('WhatsApp client is not connected. Please ensure connection first.', 'error');
         return;
     }
     
     // Validate phone number
     const validation = validatePhoneNumber(phoneNumber);
     if (!validation.valid) {
-        showMessage(resultContainer, validation.error, 'error');
+        displaySingleWhatsAppResult({
+            number: phoneNumber,
+            error: validation.error
+        });
         return;
     }
     
@@ -626,11 +913,25 @@ async function checkSingleNumber() {
         // Check WhatsApp status using real API
         const whatsappInfo = await checkWhatsAppStatus(validation.formatted || phoneNumber);
         
-        // Display result
-        displayWhatsAppResult(resultContainer, whatsappInfo);
+        // Add validation info to the result
+        const resultData = {
+            ...whatsappInfo,
+            number: validation.formatted || phoneNumber,
+            country: validation.country,
+            formatted: validation.formatted
+        };
+        
+        // Display result in DataTable
+        displaySingleWhatsAppResult(resultData);
+        
+        // Increment counter
+        numbersChecked++;
         
     } catch (error) {
-        showMessage(resultContainer, 'حدث خطأ أثناء الفحص: ' + error.message, 'error');
+        displaySingleWhatsAppResult({
+            number: phoneNumber,
+            error: 'Error during check: ' + error.message
+        });
     } finally {
         showLoading(false);
     }
@@ -778,27 +1079,30 @@ async function checkBulkNumbers() {
 // Single carrier check
 async function checkCarrier() {
     const numberInput = document.getElementById('carrier-number');
-    const resultContainer = document.getElementById('carrier-result');
     const phoneNumber = numberInput.value.trim();
     
     if (!phoneNumber) {
-        showMessage(resultContainer, 'يرجى إدخال رقم الهاتف', 'error');
+        showMessage('Please enter a phone number', 'error');
         return;
     }
     
     // Validate phone number
     const validation = validatePhoneNumber(phoneNumber);
     if (!validation.valid) {
-        showMessage(resultContainer, validation.error, 'error');
+        displayCarrierResult({
+            number: phoneNumber,
+            error: validation.error
+        });
         return;
     }
     
     // Get carrier info
     const carrierInfo = getCarrierInfo(validation.formatted || phoneNumber);
     
-    // Display result
-    displayCarrierResult(resultContainer, {
+    // Display result in DataTable
+    displayCarrierResult({
         number: validation.formatted || phoneNumber,
+        formatted: validation.formatted,
         ...carrierInfo
     });
 }
@@ -1547,9 +1851,6 @@ function loadProfileImage(imageUrl, container) {
     }, 10000); // 10 second timeout
 }
 
-// Global variable to store current results for export
-let currentResults = [];
-
 // Export results functionality
 function exportResults(type = 'all') {
     if (!currentResults || currentResults.length === 0) {
@@ -1615,8 +1916,6 @@ function exportResults(type = 'all') {
 }
 
 // Toggle between card view and table view
-let isTableView = false;
-
 function toggleTableView() {
     isTableView = !isTableView;
     const resultContainer = document.getElementById('bulk-result');
@@ -1834,7 +2133,7 @@ function resetFilters() {
 
 // Initialize app
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('تم تحميل تطبيق فحص أرقام الواتساب بنجاح');
+    console.log('WhatsApp Number Checker application loaded successfully');
     
     // Initialize connection status
     updateConnectionStatus('connecting');
@@ -1844,15 +2143,37 @@ document.addEventListener('DOMContentLoaded', function() {
     statusCheckInterval = setInterval(checkBackendStatus, 5000); // Check every 5 seconds
     
     // Add keyboard support for Enter key
-    document.getElementById('single-number').addEventListener('keypress', function(e) {
+    document.getElementById('single-number')?.addEventListener('keypress', function(e) {
         if (e.key === 'Enter') {
             checkSingleNumber();
         }
     });
     
-    document.getElementById('carrier-number').addEventListener('keypress', function(e) {
+    document.getElementById('carrier-number')?.addEventListener('keypress', function(e) {
         if (e.key === 'Enter') {
             checkCarrier();
+        }
+    });
+    
+    // Add file upload handler for file management
+    document.getElementById('manage-file')?.addEventListener('change', handleFileUpload);
+    
+    // Initialize mobile menu
+    if (window.innerWidth <= 768) {
+        const sidebar = document.querySelector('.sidebar');
+        sidebar?.classList.add('collapsed');
+    }
+    
+    // Handle window resize
+    window.addEventListener('resize', function() {
+        const sidebar = document.querySelector('.sidebar');
+        const mainContent = document.querySelector('.main-content');
+        
+        if (window.innerWidth <= 768) {
+            sidebar?.classList.add('collapsed');
+            mainContent?.classList.add('sidebar-collapsed');
+        } else {
+            sidebar?.classList.remove('show');
         }
     });
     
@@ -1866,7 +2187,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Add test button for localhost development (can be removed in production)
     if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
         const testButton = document.createElement('button');
-        testButton.innerHTML = '<i class="fas fa-vial"></i> اختبار النتائج';
+        testButton.innerHTML = '<i class="fas fa-vial"></i> Test Results';
         testButton.className = 'btn-secondary';
         testButton.style.cssText = 'position: fixed; top: 10px; left: 10px; z-index: 1000; font-size: 0.8rem; padding: 5px 10px; background: rgba(0,0,0,0.7); color: white; border: none; border-radius: 5px;';
         testButton.onclick = createMockResults;
@@ -1926,4 +2247,340 @@ function createMockResults() {
     displayResultsAsCards(document.getElementById('bulk-result'), mockResults);
     
     console.log('Mock results created for testing');
+}
+
+// Display single WhatsApp result in DataTable
+function displaySingleWhatsAppResult(data) {
+    const tableContainer = document.getElementById('single-result-table');
+    const tbody = document.getElementById('single-result-tbody');
+    
+    if (!tableContainer || !tbody) return;
+    
+    // Clear previous results
+    tbody.innerHTML = '';
+    
+    if (data.error) {
+        tbody.innerHTML = `
+            <tr>
+                <td>${data.number}</td>
+                <td colspan="6" style="color: #dc3545; text-align: center;">
+                    <i class="fas fa-exclamation-triangle"></i> ${data.error}
+                </td>
+            </tr>
+        `;
+    } else {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>
+                <div class="number-cell">
+                    <strong>${data.number}</strong>
+                    ${data.formatted && data.formatted !== data.number ? `<br><small>${data.formatted}</small>` : ''}
+                </div>
+            </td>
+            <td>
+                <div class="country-cell">
+                    ${getCountryFlag(data.country)}
+                    ${getCountryName(data.country) || 'Unknown'}
+                </div>
+            </td>
+            <td>
+                <span class="status-badge ${data.hasWhatsApp ? 'whatsapp' : 'no-whatsapp'}">
+                    ${data.hasWhatsApp ? 'Has WhatsApp' : 'No WhatsApp'}
+                </span>
+            </td>
+            <td>
+                ${data.hasWhatsApp ? 
+                    `<span class="status-badge ${data.isBusiness ? 'business' : 'personal'}">
+                        ${data.isBusiness ? 'Business' : 'Personal'}
+                    </span>` : 
+                    '<span class="text-muted">-</span>'
+                }
+            </td>
+            <td>${data.name || '<span class="text-muted">-</span>'}</td>
+            <td>
+                ${data.hasWhatsApp && data.profilePicture ? 
+                    `<img src="${data.profilePicture}" alt="Profile" style="width: 30px; height: 30px; border-radius: 50%; cursor: pointer;" onclick="showProfileShowcase(${JSON.stringify(data).replace(/"/g, '&quot;')}, '${data.profilePicture}')">` :
+                    '<span class="text-muted">-</span>'
+                }
+            </td>
+            <td>
+                <div class="action-buttons">
+                    ${data.hasWhatsApp ? `
+                        <button class="btn btn-sm btn-primary" onclick="openWhatsApp('${data.number}')" title="Open in WhatsApp">
+                            <i class="fab fa-whatsapp"></i>
+                        </button>
+                    ` : ''}
+                    <button class="btn btn-sm btn-secondary" onclick="copyToClipboard('${data.number}')" title="Copy Number">
+                        <i class="fas fa-copy"></i>
+                    </button>
+                </div>
+            </td>
+        `;
+        tbody.appendChild(row);
+    }
+    
+    // Show the table
+    tableContainer.style.display = 'block';
+    
+    // Hide the old result container
+    const oldContainer = document.getElementById('single-result');
+    if (oldContainer) {
+        oldContainer.style.display = 'none';
+    }
+}
+
+// Display carrier result in DataTable
+function displayCarrierResult(data) {
+    const tableContainer = document.getElementById('carrier-result-table');
+    const tbody = document.getElementById('carrier-result-tbody');
+    
+    if (!tableContainer || !tbody) return;
+    
+    // Clear previous results
+    tbody.innerHTML = '';
+    
+    if (data.error) {
+        tbody.innerHTML = `
+            <tr>
+                <td>${data.number}</td>
+                <td colspan="6" style="color: #dc3545; text-align: center;">
+                    <i class="fas fa-exclamation-triangle"></i> ${data.error}
+                </td>
+            </tr>
+        `;
+    } else {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>
+                <div class="number-cell">
+                    <strong>${data.number}</strong>
+                    ${data.formatted && data.formatted !== data.number ? `<br><small>${data.formatted}</small>` : ''}
+                </div>
+            </td>
+            <td>
+                <div class="country-cell">
+                    ${getCountryFlag(data.countryCode)}
+                    ${data.country || 'Unknown'}
+                </div>
+            </td>
+            <td>
+                <strong>${data.carrier || 'Unknown'}</strong>
+            </td>
+            <td>
+                <span class="badge badge-info">${data.numberType || 'Unknown'}</span>
+            </td>
+            <td>${data.region || 'Unknown'}</td>
+            <td>${data.timeZone || 'Unknown'}</td>
+            <td>
+                <span class="status-badge ${data.isValid ? 'whatsapp' : 'no-whatsapp'}">
+                    ${data.isValid ? 'Valid' : 'Invalid'}
+                </span>
+            </td>
+        `;
+        tbody.appendChild(row);
+    }
+    
+    // Show the table
+    tableContainer.style.display = 'block';
+    
+    // Hide the old result container
+    const oldContainer = document.getElementById('carrier-result');
+    if (oldContainer) {
+        oldContainer.style.display = 'none';
+    }
+}
+
+// File Management Functions
+// Handle file upload for management
+function handleFileUpload() {
+    const fileInput = document.getElementById('manage-file');
+    const file = fileInput.files[0];
+    
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        currentFileData = {
+            name: file.name,
+            content: e.target.result,
+            lines: e.target.result.split('\n').filter(line => line.trim())
+        };
+        
+        showFileTools();
+        showFilePreview();
+    };
+    reader.readAsText(file);
+}
+
+function showFileTools() {
+    const toolsContainer = document.getElementById('file-tools');
+    if (toolsContainer) {
+        toolsContainer.style.display = 'block';
+    }
+}
+
+function showFilePreview() {
+    const previewContainer = document.getElementById('file-preview');
+    const previewContent = document.getElementById('file-content-preview');
+    
+    if (previewContainer && previewContent && currentFileData) {
+        const preview = currentFileData.lines.slice(0, 10).join('\n');
+        previewContent.textContent = preview;
+        previewContainer.style.display = 'block';
+    }
+}
+
+function addPrefixToFile() {
+    if (!currentFileData) return;
+    
+    const newLines = currentFileData.lines.map(line => {
+        const trimmed = line.trim();
+        if (trimmed && !trimmed.startsWith('+')) {
+            return '+' + trimmed;
+        }
+        return trimmed;
+    });
+    
+    processedFiles.push({
+        name: `${currentFileData.name.replace(/\.[^/.]+$/, '')}_with_prefix.txt`,
+        content: newLines.join('\n')
+    });
+    
+    showMessage('+ prefix added to all numbers', 'success');
+}
+
+function removePrefixFromFile() {
+    if (!currentFileData) return;
+    
+    const newLines = currentFileData.lines.map(line => {
+        const trimmed = line.trim();
+        if (trimmed.startsWith('+')) {
+            return trimmed.substring(1);
+        }
+        return trimmed;
+    });
+    
+    processedFiles.push({
+        name: `${currentFileData.name.replace(/\.[^/.]+$/, '')}_without_prefix.txt`,
+        content: newLines.join('\n')
+    });
+    
+    showMessage('+ prefix removed from all numbers', 'success');
+}
+
+function splitFile() {
+    if (!currentFileData) return;
+    
+    const splitSize = parseInt(document.getElementById('split-size').value) || 1000;
+    const prefix = document.getElementById('split-prefix').value || 'numbers_part';
+    
+    const lines = currentFileData.lines;
+    const totalParts = Math.ceil(lines.length / splitSize);
+    
+    for (let i = 0; i < totalParts; i++) {
+        const start = i * splitSize;
+        const end = Math.min(start + splitSize, lines.length);
+        const partLines = lines.slice(start, end);
+        
+        processedFiles.push({
+            name: `${prefix}_${i + 1}_of_${totalParts}.txt`,
+            content: partLines.join('\n')
+        });
+    }
+    
+    showMessage(`File split into ${totalParts} parts`, 'success');
+}
+
+function downloadProcessedFiles() {
+    processedFiles.forEach(file => {
+        const blob = new Blob([file.content], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = file.name;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    });
+    
+    showMessage(`Downloaded ${processedFiles.length} files`, 'success');
+}
+
+async function downloadAsZip() {
+    if (typeof JSZip === 'undefined') {
+        showMessage('ZIP functionality not available', 'error');
+        return;
+    }
+    
+    const zip = new JSZip();
+    
+    processedFiles.forEach(file => {
+        zip.file(file.name, file.content);
+    });
+    
+    try {
+        const content = await zip.generateAsync({ type: 'blob' });
+        const url = URL.createObjectURL(content);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'processed_numbers.zip';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        showMessage('ZIP file downloaded successfully', 'success');
+    } catch (error) {
+        showMessage('Error creating ZIP file', 'error');
+    }
+}
+
+// Utility functions for DataTable actions
+function openWhatsApp(number) {
+    const cleanNumber = number.replace(/[^\d]/g, '');
+    window.open(`https://wa.me/${cleanNumber}`, '_blank');
+}
+
+function copyToClipboard(text) {
+    navigator.clipboard.writeText(text).then(() => {
+        showMessage('Number copied to clipboard!', 'success');
+    }).catch(() => {
+        // Fallback for older browsers
+        const textArea = document.createElement('textarea');
+        textArea.value = text;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+        showMessage('Number copied to clipboard!', 'success');
+    });
+}
+
+function showMessage(message, type = 'info') {
+    // Create a simple toast notification
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    toast.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 12px 20px;
+        background: ${type === 'success' ? '#d4edda' : type === 'error' ? '#f8d7da' : '#d1ecf1'};
+        color: ${type === 'success' ? '#155724' : type === 'error' ? '#721c24' : '#0c5460'};
+        border: 1px solid ${type === 'success' ? '#c3e6cb' : type === 'error' ? '#f5c6cb' : '#bee5eb'};
+        border-radius: 8px;
+        z-index: 9999;
+        transition: all 0.3s ease;
+        font-weight: 500;
+    `;
+    toast.textContent = message;
+    
+    document.body.appendChild(toast);
+    
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(-10px)';
+        setTimeout(() => document.body.removeChild(toast), 300);
+    }, 3000);
 }
