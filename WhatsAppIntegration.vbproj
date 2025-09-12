@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net6.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <RootNamespace>WhatsAppIntegration</RootNamespace>
+    <AssemblyName>WhatsAppIntegration</AssemblyName>
+    <StartupObject>WhatsAppIntegration.Program</StartupObject>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <!-- Support for Windows only -->
+    <SupportedOSPlatformVersion>10.0.17763.0</SupportedOSPlatformVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.2151.40" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="src\WASession.vb" />
+    <Compile Include="src\MainForm.vb" />
+    <Compile Include="src\JavaScriptBridge.vb" />
+    <Compile Include="src\BusinessAccountInfo.vb" />
+    <Compile Include="Program.vb" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="src\MainForm.resx">
+      <DependentUpon>MainForm.vb</DependentUpon>
+    </EmbeddedResource>
+  </ItemGroup>
+
+</Project>

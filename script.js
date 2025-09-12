@@ -192,6 +192,81 @@ function validatePhoneNumber(number) {
     }
 }
 
+// Enhanced login detection for VB.NET integration
+function IsUserLoggedIn() {
+    try {
+        // Multiple robust checks for login state
+        const checks = [
+            // Check 1: No QR code visible
+            () => document.querySelector('[data-testid="qr-code"]') === null,
+            
+            // Check 2: Chat list is visible
+            () => document.querySelector('[data-testid="chat-list"]') !== null,
+            
+            // Check 3: Side panel exists
+            () => document.querySelector('#side') !== null,
+            
+            // Check 4: Main app is in logged-in state
+            () => {
+                const app = document.querySelector('#app');
+                return app && !app.querySelector('[data-testid="qr-code"]');
+            },
+            
+            // Check 5: User avatar or profile info visible
+            () => document.querySelector('[data-testid="avatar"]') !== null,
+            
+            // Check 6: WhatsApp main interface elements
+            () => document.querySelector('[data-testid="default-user"]') !== null,
+            
+            // Check 7: Check for conversation area
+            () => document.querySelector('[data-testid="conversation-panel-messages"]') !== null || 
+                  document.querySelector('.two') !== null
+        ];
+        
+        // Count successful checks
+        let passedChecks = 0;
+        const results = checks.map((check, index) => {
+            try {
+                const result = check();
+                if (result) passedChecks++;
+                return { check: index + 1, passed: result };
+            } catch (e) {
+                return { check: index + 1, passed: false, error: e.message };
+            }
+        });
+        
+        // Need at least 3 checks to pass for confident detection
+        const isLoggedIn = passedChecks >= 3;
+        
+        // Send detailed info to VB.NET if bridge exists
+        if (window.vbnetHelper) {
+            window.vbnetHelper.sendToVBNet('loginStatusDetailed', {
+                isLoggedIn: isLoggedIn,
+                passedChecks: passedChecks,
+                totalChecks: checks.length,
+                checkResults: results,
+                timestamp: new Date().toISOString(),
+                url: window.location.href
+            });
+        }
+        
+        console.log(`Login detection: ${isLoggedIn} (${passedChecks}/${checks.length} checks passed)`);
+        return isLoggedIn;
+        
+    } catch (error) {
+        console.error('Error in IsUserLoggedIn:', error);
+        // Send error info to VB.NET if bridge exists
+        if (window.vbnetHelper) {
+            window.vbnetHelper.sendToVBNet('loginDetectionError', {
+                error: error.message,
+                stack: error.stack,
+                timestamp: new Date().toISOString()
+            });
+        }
+        return false;
+    }
+}
+
 // Check backend connection status
 async function checkBackendStatus() {
     try {
@@ -207,6 +282,24 @@ async function checkBackendStatus() {
             updateAccountInfo(data.accountInfo.name || data.accountInfo.number, 'Connected and ready');
         }
         
+        // Enhanced status reporting for VB.NET integration
+        if (window.vbnetHelper) {
+            window.vbnetHelper.sendToVBNet('backendStatusUpdate', {
+                status: data.status,
+                connected: data.connected,
+                accountInfo: data.accountInfo,
+                hasQRCode: !!data.qrCode,
+                timestamp: new Date().toISOString()
+            });
+            
+            // Also check login status if we have a connected backend
+            if (data.status === 'connected') {
+                setTimeout(() => {
+                    IsUserLoggedIn();
+                }, 1000);
+            }
+        }
+        
         return data;
     } catch (error) {
         console.error('Server connection error:', error);
@@ -214,6 +307,15 @@ async function checkBackendStatus() {
         updateConnectionStatus('disconnected');
         updateSettingsConnectionStatus('disconnected');
         updateAccountInfo('Not Connected', 'Click to connect WhatsApp');
+        
+        // Report error to VB.NET
+        if (window.vbnetHelper) {
+            window.vbnetHelper.sendToVBNet('backendConnectionError', {
+                error: error.message,
+                timestamp: new Date().toISOString()
+            });
+        }
+        
         return null;
     }
 }

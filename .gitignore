@@ -132,3 +132,37 @@ build/Release
 .Trashes
 ehthumbs.db
 Thumbs.db
+
+# .NET Build Artifacts
+bin/
+obj/
+*.dll
+*.pdb
+*.exe
+*.user
+*.cache
+*.suo
+*.tmp
+*.obj
+*.pch
+*.tlog
+*.log
+*.vspscc
+*.vssscc
+.builds
+*.pidb
+*.svclog
+*.scc
+
+# Visual Studio files
+.vs/
+*.sln.docstates
+*.userprefs
+.vscode/
+
+# NuGet packages
+packages/
+*.nupkg
+project.lock.json
+project.fragment.lock.json
+artifacts/
